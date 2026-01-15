@@ -411,16 +411,6 @@ const MemberCRM = () => {
                                   <Pencil className="h-4 w-4 mr-2" />
                                   Edit
                                 </DropdownMenuItem>
-                                <DropdownMenuItem>
-                                  <Mail className="h-4 w-4 mr-2" />
-                                  Send Email
-                                </DropdownMenuItem>
-                                {member.phone && (
-                                  <DropdownMenuItem>
-                                    <Phone className="h-4 w-4 mr-2" />
-                                    Call
-                                  </DropdownMenuItem>
-                                )}
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
                                   className="text-destructive"
@@ -480,9 +470,6 @@ const MemberCRM = () => {
                       </div>
                       <div className="flex items-center gap-2">
                         {getStatusBadge(member.activity_status)}
-                        <Button size="sm" className="bg-primary">
-                          Contact
-                        </Button>
                       </div>
                     </div>
                   ))}
@@ -499,15 +486,18 @@ const MemberCRM = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid md:grid-cols-3 gap-4">
-                <Button variant="outline" className="h-20 flex-col gap-2">
+                <Button variant="outline" className="h-20 flex-col gap-2 relative" disabled>
+                  <Badge variant="secondary" className="absolute top-2 right-2 text-xs">Coming Soon</Badge>
                   <Mail className="h-6 w-6" />
                   <span>Email Campaign</span>
                 </Button>
-                <Button variant="outline" className="h-20 flex-col gap-2">
+                <Button variant="outline" className="h-20 flex-col gap-2 relative" disabled>
+                  <Badge variant="secondary" className="absolute top-2 right-2 text-xs">Coming Soon</Badge>
                   <Phone className="h-6 w-6" />
                   <span>SMS Message</span>
                 </Button>
-                <Button variant="outline" className="h-20 flex-col gap-2">
+                <Button variant="outline" className="h-20 flex-col gap-2 relative" disabled>
+                  <Badge variant="secondary" className="absolute top-2 right-2 text-xs">Coming Soon</Badge>
                   <Users className="h-6 w-6" />
                   <span>Push Notification</span>
                 </Button>

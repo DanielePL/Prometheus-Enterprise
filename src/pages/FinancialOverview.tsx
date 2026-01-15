@@ -549,7 +549,8 @@ const FinancialOverview = () => {
                   </p>
                 </div>
               </div>
-              <Button variant="destructive">
+              <Button variant="destructive" disabled className="relative">
+                <Badge variant="secondary" className="absolute -top-2 -right-2 text-xs">Coming Soon</Badge>
                 <Mail className="mr-2 h-4 w-4" />
                 Send reminders
               </Button>

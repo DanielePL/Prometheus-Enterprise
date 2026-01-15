@@ -11,6 +11,33 @@ export type ActivityStatus = 'active' | 'moderate' | 'inactive';
 export type PaymentStatus = 'paid' | 'pending' | 'overdue';
 export type SessionStatus = 'scheduled' | 'completed' | 'cancelled' | 'no_show';
 export type StaffRole = 'owner' | 'admin' | 'manager' | 'coach' | 'receptionist';
+export type StripeAccountStatus = 'disconnected' | 'pending' | 'connected' | 'restricted';
+export type StripeSubscriptionStatus = 'incomplete' | 'incomplete_expired' | 'trialing' | 'active' | 'past_due' | 'canceled' | 'unpaid' | 'paused';
+
+// Facility types for different organizations
+export type FacilityType =
+  | 'gym'
+  | 'fitness_studio'
+  | 'sports_academy'
+  | 'tennis_club'
+  | 'golf_club'
+  | 'martial_arts'
+  | 'dance_studio'
+  | 'therapy_center'
+  | 'rehabilitation'
+  | 'yoga_studio'
+  | 'swimming_school'
+  | 'climbing_gym'
+  | 'equestrian_center'
+  | 'other';
+
+// Client types based on facility type
+export type ClientType =
+  | 'members'
+  | 'students'
+  | 'athletes'
+  | 'patients'
+  | 'clients';
 
 export interface Database {
   public: {
@@ -25,6 +52,11 @@ export interface Database {
           logo_url: string | null;
           timezone: string;
           currency: string;
+          facility_types: FacilityType[];
+          client_types: ClientType[];
+          stripe_account_id: string | null;
+          stripe_connected_at: string | null;
+          stripe_account_status: StripeAccountStatus;
           created_at: string;
           updated_at: string;
         };
@@ -37,6 +69,11 @@ export interface Database {
           logo_url?: string | null;
           timezone?: string;
           currency?: string;
+          facility_types?: FacilityType[];
+          client_types?: ClientType[];
+          stripe_account_id?: string | null;
+          stripe_connected_at?: string | null;
+          stripe_account_status?: StripeAccountStatus;
           created_at?: string;
           updated_at?: string;
         };
@@ -49,6 +86,11 @@ export interface Database {
           logo_url?: string | null;
           timezone?: string;
           currency?: string;
+          facility_types?: FacilityType[];
+          client_types?: ClientType[];
+          stripe_account_id?: string | null;
+          stripe_connected_at?: string | null;
+          stripe_account_status?: StripeAccountStatus;
           created_at?: string;
           updated_at?: string;
         };
@@ -190,6 +232,7 @@ export interface Database {
           last_visit: string | null;
           total_visits: number;
           notes: string | null;
+          stripe_customer_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -209,6 +252,7 @@ export interface Database {
           last_visit?: string | null;
           total_visits?: number;
           notes?: string | null;
+          stripe_customer_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -228,6 +272,7 @@ export interface Database {
           last_visit?: string | null;
           total_visits?: number;
           notes?: string | null;
+          stripe_customer_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -327,6 +372,9 @@ export interface Database {
           paid_date: string | null;
           payment_method: string | null;
           invoice_number: string | null;
+          stripe_payment_intent_id: string | null;
+          stripe_invoice_id: string | null;
+          stripe_charge_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -342,6 +390,9 @@ export interface Database {
           paid_date?: string | null;
           payment_method?: string | null;
           invoice_number?: string | null;
+          stripe_payment_intent_id?: string | null;
+          stripe_invoice_id?: string | null;
+          stripe_charge_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -357,6 +408,56 @@ export interface Database {
           paid_date?: string | null;
           payment_method?: string | null;
           invoice_number?: string | null;
+          stripe_payment_intent_id?: string | null;
+          stripe_invoice_id?: string | null;
+          stripe_charge_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      stripe_subscriptions: {
+        Row: {
+          id: string;
+          gym_id: string;
+          member_id: string;
+          stripe_subscription_id: string;
+          stripe_customer_id: string;
+          stripe_price_id: string;
+          status: StripeSubscriptionStatus;
+          current_period_start: string | null;
+          current_period_end: string | null;
+          cancel_at_period_end: boolean;
+          canceled_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          gym_id: string;
+          member_id: string;
+          stripe_subscription_id: string;
+          stripe_customer_id: string;
+          stripe_price_id: string;
+          status?: StripeSubscriptionStatus;
+          current_period_start?: string | null;
+          current_period_end?: string | null;
+          cancel_at_period_end?: boolean;
+          canceled_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          gym_id?: string;
+          member_id?: string;
+          stripe_subscription_id?: string;
+          stripe_customer_id?: string;
+          stripe_price_id?: string;
+          status?: StripeSubscriptionStatus;
+          current_period_start?: string | null;
+          current_period_end?: string | null;
+          cancel_at_period_end?: boolean;
+          canceled_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -524,3 +625,4 @@ export type Message = Tables<'messages'>;
 export type Alert = Tables<'alerts'>;
 export type Setting = Tables<'settings'>;
 export type MemberVisit = Tables<'member_visits'>;
+export type StripeSubscription = Tables<'stripe_subscriptions'>;

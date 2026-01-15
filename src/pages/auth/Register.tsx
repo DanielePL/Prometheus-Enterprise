@@ -82,7 +82,7 @@ export default function Register() {
               onClick={() => setIsGymOwner(true)}
             >
               <Building2 className="mr-2 h-4 w-4" />
-              Gym Owner
+              Facility Owner
             </Button>
             <Button
               type="button"
@@ -91,7 +91,7 @@ export default function Register() {
               onClick={() => setIsGymOwner(false)}
             >
               <User className="mr-2 h-4 w-4" />
-              Team Member
+              Staff Member
             </Button>
           </div>
 
@@ -114,13 +114,13 @@ export default function Register() {
 
             {isGymOwner && (
               <div className="space-y-2">
-                <Label htmlFor="gymName">Gym Name</Label>
+                <Label htmlFor="gymName">Facility Name</Label>
                 <div className="relative">
                   <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     id="gymName"
                     type="text"
-                    placeholder="My Fitness Studio"
+                    placeholder="My Academy / Studio / Clinic"
                     value={gymName}
                     onChange={(e) => setGymName(e.target.value)}
                     className="pl-10"

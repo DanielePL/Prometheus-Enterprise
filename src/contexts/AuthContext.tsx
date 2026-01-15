@@ -19,44 +19,14 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// DEV MODE - bypass auth for development
-const DEV_MODE = true;
-
-const MOCK_GYM: Gym = {
-  id: 'dev-gym-001',
-  name: 'Prometheus Gym',
-  email: 'info@prometheusgym.com',
-  phone: '+41 79 123 45 67',
-  address: 'Zürich, Switzerland',
-  logo_url: null,
-  timezone: 'Europe/Zurich',
-  currency: 'CHF',
-  created_at: new Date().toISOString(),
-  updated_at: new Date().toISOString(),
-};
-
-const MOCK_PROFILE: Profile = {
-  id: 'dev-user-001',
-  gym_id: 'dev-gym-001',
-  email: 'dev@prometheus.gym',
-  full_name: 'Dev User',
-  avatar_url: null,
-  role: 'owner',
-  created_at: new Date().toISOString(),
-  updated_at: new Date().toISOString(),
-};
-
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(DEV_MODE ? { id: 'dev-user-001', email: 'dev@prometheus.gym' } as User : null);
-  const [session, setSession] = useState<Session | null>(DEV_MODE ? {} as Session : null);
-  const [profile, setProfile] = useState<Profile | null>(DEV_MODE ? MOCK_PROFILE : null);
-  const [gym, setGym] = useState<Gym | null>(DEV_MODE ? MOCK_GYM : null);
-  const [loading, setLoading] = useState(DEV_MODE ? false : true);
+  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [gym, setGym] = useState<Gym | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Skip auth in dev mode
-    if (DEV_MODE) return;
-
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);

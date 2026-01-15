@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -34,10 +34,40 @@ import {
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
-import { settingsService } from "@/services/settings";
+import { settingsService, type NotificationPreferences } from "@/services/settings";
 import StaffDialog from "@/components/settings/StaffDialog";
 import RemoveStaffDialog from "@/components/settings/RemoveStaffDialog";
-import type { Profile, StaffRole } from "@/types/database";
+import type { Profile, StaffRole, FacilityType, ClientType } from "@/types/database";
+import { Checkbox } from "@/components/ui/checkbox";
+import { StripeConnectionCard } from "@/components/stripe";
+import { stripe } from "@/services/stripeService";
+
+// Facility type options
+const FACILITY_TYPES: { value: FacilityType; label: string; description: string }[] = [
+  { value: "gym", label: "Gym / Fitness Center", description: "Traditional fitness facility with equipment" },
+  { value: "fitness_studio", label: "Fitness Studio", description: "Boutique fitness, group classes" },
+  { value: "sports_academy", label: "Sports Academy", description: "Training academy for athletes" },
+  { value: "tennis_club", label: "Tennis Club", description: "Tennis courts and coaching" },
+  { value: "golf_club", label: "Golf Club", description: "Golf course and training" },
+  { value: "martial_arts", label: "Martial Arts School", description: "Karate, Judo, BJJ, MMA" },
+  { value: "dance_studio", label: "Dance Studio", description: "Ballet, contemporary, hip-hop" },
+  { value: "therapy_center", label: "Therapy Center", description: "Physiotherapy, wellness" },
+  { value: "rehabilitation", label: "Rehabilitation Center", description: "Recovery and rehab programs" },
+  { value: "yoga_studio", label: "Yoga / Pilates Studio", description: "Mind-body wellness" },
+  { value: "swimming_school", label: "Swimming School", description: "Swim lessons and aquatics" },
+  { value: "climbing_gym", label: "Climbing Gym", description: "Indoor climbing and bouldering" },
+  { value: "equestrian_center", label: "Equestrian Center", description: "Horse riding and training" },
+  { value: "other", label: "Other", description: "Other type of facility" },
+];
+
+// Client type options
+const CLIENT_TYPES: { value: ClientType; label: string; description: string }[] = [
+  { value: "members", label: "Members", description: "General membership-based clients" },
+  { value: "students", label: "Students", description: "Learners in training programs" },
+  { value: "athletes", label: "Athletes", description: "Competitive sports participants" },
+  { value: "patients", label: "Patients", description: "Medical/therapy clients" },
+  { value: "clients", label: "Clients", description: "General service clients" },
+];
 
 const ROLE_LABELS: Record<StaffRole, string> = {
   owner: "Owner",
@@ -68,12 +98,42 @@ const GymSettings = () => {
   const [notifications, setNotifications] = useState({
     newMemberSignups: true,
     paymentAlerts: true,
-    coachUpdates: false,
-    memberCheckins: false,
-    weeklyReports: true,
+    sessionReminders: true,
+    marketingEmails: false,
   });
 
+  // Facility profile state
+  const [facilityTypes, setFacilityTypes] = useState<FacilityType[]>(['gym']);
+  const [clientTypes, setClientTypes] = useState<ClientType[]>(['members']);
+  const [isFacilityFormDirty, setIsFacilityFormDirty] = useState(false);
+
   const gymId = profile?.gym_id;
+
+  // Fetch notification preferences
+  const { data: savedNotifications } = useQuery({
+    queryKey: ["notification-preferences", gymId],
+    queryFn: () => settingsService.getNotificationPreferences(gymId!),
+    enabled: !!gymId,
+  });
+
+  // Sync notification preferences with fetched data
+  useEffect(() => {
+    if (savedNotifications) {
+      setNotifications(savedNotifications);
+    }
+  }, [savedNotifications]);
+
+  // Sync facility types with gym data
+  useEffect(() => {
+    if (gym) {
+      if (gym.facility_types?.length) {
+        setFacilityTypes(gym.facility_types);
+      }
+      if (gym.client_types?.length) {
+        setClientTypes(gym.client_types);
+      }
+    }
+  }, [gym]);
 
   // Fetch gym data
   const { data: gym, isLoading: loadingGym } = useQuery({
@@ -84,19 +144,26 @@ const GymSettings = () => {
   });
 
   // Sync form with gym data
-  useState(() => {
+  useEffect(() => {
     if (gym) {
       setGymName(gym.name);
       setGymEmail(gym.email || "");
       setGymPhone(gym.phone || "");
       setGymAddress(gym.address || "");
     }
-  });
+  }, [gym]);
 
   // Fetch staff
   const { data: staff = [], isLoading: loadingStaff } = useQuery({
     queryKey: ["staff", gymId],
     queryFn: () => settingsService.getStaff(gymId!),
+    enabled: !!gymId,
+  });
+
+  // Fetch Stripe connection status
+  const { data: stripeStatus, refetch: refetchStripeStatus } = useQuery({
+    queryKey: ["stripe-status", gymId],
+    queryFn: () => stripe.getConnectionStatus(gymId!),
     enabled: !!gymId,
   });
 
@@ -158,6 +225,33 @@ const GymSettings = () => {
     },
   });
 
+  // Save notification preferences mutation
+  const saveNotificationsMutation = useMutation({
+    mutationFn: (prefs: NotificationPreferences) =>
+      settingsService.setNotificationPreferences(gymId!, prefs),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notification-preferences", gymId] });
+      toast.success("Notification preferences saved");
+    },
+    onError: () => {
+      toast.error("Error saving preferences");
+    },
+  });
+
+  // Save facility profile mutation
+  const saveFacilityProfileMutation = useMutation({
+    mutationFn: (data: { facility_types: FacilityType[]; client_types: ClientType[] }) =>
+      settingsService.updateGym(gymId!, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["gym", gymId] });
+      setIsFacilityFormDirty(false);
+      toast.success("Facility profile saved");
+    },
+    onError: () => {
+      toast.error("Error saving facility profile");
+    },
+  });
+
   const handleFormChange = () => {
     setIsFormDirty(true);
   };
@@ -207,7 +301,7 @@ const GymSettings = () => {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold">Settings</h1>
-          <p className="text-muted-foreground">Manage gym profile and preferences</p>
+          <p className="text-muted-foreground">Manage facility profile and preferences</p>
         </div>
       </div>
 
@@ -215,6 +309,7 @@ const GymSettings = () => {
       <Tabs defaultValue="profile" className="space-y-4">
         <TabsList className="glass flex-wrap">
           <TabsTrigger value="profile">Profile</TabsTrigger>
+          <TabsTrigger value="facility">Facility Type</TabsTrigger>
           <TabsTrigger value="users">Team</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
           <TabsTrigger value="integrations">Integrations</TabsTrigger>
@@ -227,7 +322,7 @@ const GymSettings = () => {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Building2 className="h-5 w-5 text-primary" />
-                Gym Profile
+                Facility Profile
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -337,6 +432,120 @@ const GymSettings = () => {
                   )}
                 </Button>
               </form>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Facility Type Tab */}
+        <TabsContent value="facility" className="space-y-4">
+          <Card className="glass-card">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Building2 className="h-5 w-5 text-primary" />
+                Facility Type
+              </CardTitle>
+              <p className="text-sm text-muted-foreground mt-1">
+                Select the type(s) of facility you operate. This helps customize the experience.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid gap-3 sm:grid-cols-2">
+                {FACILITY_TYPES.map((type) => (
+                  <div
+                    key={type.value}
+                    className={`flex items-start gap-3 p-4 rounded-lg border cursor-pointer transition-colors ${
+                      facilityTypes.includes(type.value)
+                        ? "border-primary bg-primary/5"
+                        : "border-border hover:bg-muted/50"
+                    }`}
+                    onClick={() => {
+                      setFacilityTypes((prev) =>
+                        prev.includes(type.value)
+                          ? prev.filter((t) => t !== type.value)
+                          : [...prev, type.value]
+                      );
+                      setIsFacilityFormDirty(true);
+                    }}
+                  >
+                    <Checkbox
+                      checked={facilityTypes.includes(type.value)}
+                      onCheckedChange={() => {}}
+                      className="mt-1"
+                    />
+                    <div>
+                      <p className="font-medium">{type.label}</p>
+                      <p className="text-sm text-muted-foreground">{type.description}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="glass-card">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5 text-primary" />
+                Client Terminology
+              </CardTitle>
+              <p className="text-sm text-muted-foreground mt-1">
+                How do you refer to the people you serve? Select all that apply.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {CLIENT_TYPES.map((type) => (
+                  <div
+                    key={type.value}
+                    className={`flex items-start gap-3 p-4 rounded-lg border cursor-pointer transition-colors ${
+                      clientTypes.includes(type.value)
+                        ? "border-primary bg-primary/5"
+                        : "border-border hover:bg-muted/50"
+                    }`}
+                    onClick={() => {
+                      setClientTypes((prev) =>
+                        prev.includes(type.value)
+                          ? prev.filter((t) => t !== type.value)
+                          : [...prev, type.value]
+                      );
+                      setIsFacilityFormDirty(true);
+                    }}
+                  >
+                    <Checkbox
+                      checked={clientTypes.includes(type.value)}
+                      onCheckedChange={() => {}}
+                      className="mt-1"
+                    />
+                    <div>
+                      <p className="font-medium">{type.label}</p>
+                      <p className="text-sm text-muted-foreground">{type.description}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <Button
+                onClick={() => {
+                  saveFacilityProfileMutation.mutate({
+                    facility_types: facilityTypes,
+                    client_types: clientTypes,
+                  });
+                }}
+                disabled={!isFacilityFormDirty || saveFacilityProfileMutation.isPending}
+                className="mt-4"
+              >
+                {saveFacilityProfileMutation.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="mr-2 h-4 w-4" />
+                    Save Facility Profile
+                  </>
+                )}
+              </Button>
             </CardContent>
           </Card>
         </TabsContent>
@@ -484,19 +693,14 @@ const GymSettings = () => {
                   description: "Notifications about payments and outstanding invoices",
                 },
                 {
-                  key: "coachUpdates",
-                  label: "Coach Updates",
-                  description: "Updates about coach schedules and availability",
+                  key: "sessionReminders",
+                  label: "Session Reminders",
+                  description: "Reminders about upcoming sessions",
                 },
                 {
-                  key: "memberCheckins",
-                  label: "Member Check-ins",
-                  description: "Real-time check-in notifications",
-                },
-                {
-                  key: "weeklyReports",
-                  label: "Weekly Reports",
-                  description: "Receive weekly summary reports",
+                  key: "marketingEmails",
+                  label: "Marketing Emails",
+                  description: "Receive product updates and tips",
                 },
               ].map((notification) => (
                 <div key={notification.key} className="flex items-center justify-between">
@@ -506,12 +710,15 @@ const GymSettings = () => {
                   </div>
                   <Switch
                     checked={notifications[notification.key as keyof typeof notifications]}
-                    onCheckedChange={(checked) =>
-                      setNotifications((prev) => ({
-                        ...prev,
+                    onCheckedChange={(checked) => {
+                      const newNotifications = {
+                        ...notifications,
                         [notification.key]: checked,
-                      }))
-                    }
+                      };
+                      setNotifications(newNotifications);
+                      saveNotificationsMutation.mutate(newNotifications as NotificationPreferences);
+                    }}
+                    disabled={saveNotificationsMutation.isPending}
                   />
                 </div>
               ))}
@@ -521,32 +728,46 @@ const GymSettings = () => {
 
         {/* Integrations Tab */}
         <TabsContent value="integrations" className="space-y-4">
+          {/* Stripe Payment Integration */}
+          {stripeStatus && gymId && (
+            <StripeConnectionCard
+              status={stripeStatus}
+              gymId={gymId}
+              onStatusChange={() => refetchStripeStatus()}
+            />
+          )}
+
+          {/* Other Integrations */}
           <Card className="glass-card">
             <CardHeader>
-              <CardTitle>Connected Services</CardTitle>
+              <CardTitle>Other Services</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {integrations.map((integration) => (
-                <div
-                  key={integration.name}
-                  className="flex items-center justify-between p-4 rounded-lg bg-muted/50"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-primary/20">
-                      <integration.icon className="h-6 w-6 text-primary" />
-                    </div>
-                    <div>
-                      <p className="font-medium">{integration.name}</p>
-                      <p className="text-sm text-muted-foreground">{integration.description}</p>
-                    </div>
-                  </div>
-                  <Button
-                    variant={integration.connected ? "outline" : "default"}
+              {integrations
+                .filter((i) => i.name !== "Stripe")
+                .map((integration) => (
+                  <div
+                    key={integration.name}
+                    className="flex items-center justify-between p-4 rounded-lg bg-muted/50"
                   >
-                    {integration.connected ? "Connected" : "Connect"}
-                  </Button>
-                </div>
-              ))}
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-primary/20">
+                        <integration.icon className="h-6 w-6 text-primary" />
+                      </div>
+                      <div>
+                        <p className="font-medium">{integration.name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {integration.description}
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      variant={integration.connected ? "outline" : "default"}
+                    >
+                      {integration.connected ? "Connected" : "Connect"}
+                    </Button>
+                  </div>
+                ))}
             </CardContent>
           </Card>
         </TabsContent>

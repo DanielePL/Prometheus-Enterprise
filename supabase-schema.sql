@@ -1,5 +1,6 @@
--- Prometheus Gym Suite - Database Schema
+-- Prometheus Enterprise - Database Schema
 -- Run this in the Supabase SQL Editor
+-- Supports: Gyms, Sports Academies, Therapy Centers, Golf/Tennis Clubs, and more
 
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -14,11 +15,38 @@ CREATE TYPE payment_status AS ENUM ('paid', 'pending', 'overdue');
 CREATE TYPE session_status AS ENUM ('scheduled', 'completed', 'cancelled', 'no_show');
 CREATE TYPE staff_role AS ENUM ('owner', 'admin', 'manager', 'coach', 'receptionist');
 
+-- Facility types for different organizations
+CREATE TYPE facility_type AS ENUM (
+    'gym',
+    'fitness_studio',
+    'sports_academy',
+    'tennis_club',
+    'golf_club',
+    'martial_arts',
+    'dance_studio',
+    'therapy_center',
+    'rehabilitation',
+    'yoga_studio',
+    'swimming_school',
+    'climbing_gym',
+    'equestrian_center',
+    'other'
+);
+
+-- Client types based on facility
+CREATE TYPE client_type AS ENUM (
+    'members',
+    'students',
+    'athletes',
+    'patients',
+    'clients'
+);
+
 -- ============================================
 -- TABLES
 -- ============================================
 
--- Gyms table
+-- Gyms/Facilities table (supports multiple facility types)
 CREATE TABLE gyms (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name TEXT NOT NULL,
@@ -28,6 +56,12 @@ CREATE TABLE gyms (
     logo_url TEXT,
     timezone TEXT DEFAULT 'Europe/Berlin',
     currency TEXT DEFAULT 'EUR',
+    facility_types facility_type[] DEFAULT '{gym}',
+    client_types client_type[] DEFAULT '{members}',
+    -- Stripe Connect fields
+    stripe_account_id TEXT,
+    stripe_connected_at TIMESTAMPTZ,
+    stripe_account_status TEXT DEFAULT 'disconnected',
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -94,6 +128,7 @@ CREATE TABLE members (
     last_visit TIMESTAMPTZ,
     total_visits INTEGER DEFAULT 0,
     notes TEXT,
+    stripe_customer_id TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -152,6 +187,27 @@ CREATE TABLE payments (
     paid_date TIMESTAMPTZ,
     payment_method TEXT,
     invoice_number TEXT,
+    -- Stripe fields
+    stripe_payment_intent_id TEXT,
+    stripe_invoice_id TEXT,
+    stripe_charge_id TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Stripe Subscriptions table (tracks recurring memberships via Stripe)
+CREATE TABLE stripe_subscriptions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    gym_id UUID NOT NULL REFERENCES gyms(id) ON DELETE CASCADE,
+    member_id UUID NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+    stripe_subscription_id TEXT NOT NULL UNIQUE,
+    stripe_customer_id TEXT NOT NULL,
+    stripe_price_id TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'incomplete',
+    current_period_start TIMESTAMPTZ,
+    current_period_end TIMESTAMPTZ,
+    cancel_at_period_end BOOLEAN DEFAULT false,
+    canceled_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -222,6 +278,16 @@ CREATE INDEX idx_messages_recipient_id ON messages(recipient_id);
 CREATE INDEX idx_alerts_gym_id ON alerts(gym_id);
 CREATE INDEX idx_alerts_is_read ON alerts(gym_id, is_read);
 
+-- Stripe indexes
+CREATE INDEX idx_gyms_stripe_account ON gyms(stripe_account_id);
+CREATE INDEX idx_members_stripe_customer ON members(stripe_customer_id);
+CREATE INDEX idx_payments_stripe_intent ON payments(stripe_payment_intent_id);
+CREATE INDEX idx_payments_stripe_invoice ON payments(stripe_invoice_id);
+CREATE INDEX idx_stripe_subscriptions_gym_id ON stripe_subscriptions(gym_id);
+CREATE INDEX idx_stripe_subscriptions_member_id ON stripe_subscriptions(member_id);
+CREATE INDEX idx_stripe_subscriptions_stripe_id ON stripe_subscriptions(stripe_subscription_id);
+CREATE INDEX idx_stripe_subscriptions_status ON stripe_subscriptions(status);
+
 -- ============================================
 -- FUNCTIONS & TRIGGERS
 -- ============================================
@@ -244,6 +310,7 @@ CREATE TRIGGER update_members_updated_at BEFORE UPDATE ON members FOR EACH ROW E
 CREATE TRIGGER update_sessions_updated_at BEFORE UPDATE ON sessions FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER update_payments_updated_at BEFORE UPDATE ON payments FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER update_settings_updated_at BEFORE UPDATE ON settings FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+CREATE TRIGGER update_stripe_subscriptions_updated_at BEFORE UPDATE ON stripe_subscriptions FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
 -- Function to update activity status based on last visit
 CREATE OR REPLACE FUNCTION update_member_activity_status()
@@ -344,6 +411,7 @@ ALTER TABLE payments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE alerts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE stripe_subscriptions ENABLE ROW LEVEL SECURITY;
 
 -- Profiles policies
 CREATE POLICY "Users can view own profile"
@@ -516,6 +584,40 @@ ON settings FOR ALL
 USING (
     gym_id IN (SELECT gym_id FROM profiles WHERE id = auth.uid() AND role IN ('owner', 'admin'))
 );
+
+-- Stripe subscriptions policies
+CREATE POLICY "Staff can view gym subscriptions"
+ON stripe_subscriptions FOR SELECT
+USING (
+    gym_id IN (SELECT gym_id FROM profiles WHERE id = auth.uid())
+);
+
+CREATE POLICY "Admins can manage subscriptions"
+ON stripe_subscriptions FOR ALL
+USING (
+    gym_id IN (SELECT gym_id FROM profiles WHERE id = auth.uid() AND role IN ('owner', 'admin', 'manager'))
+);
+
+-- ============================================
+-- MIGRATION (for existing databases)
+-- ============================================
+-- Run these statements if you already have the database set up:
+
+-- Facility types migration:
+-- CREATE TYPE facility_type AS ENUM (...);
+-- CREATE TYPE client_type AS ENUM (...);
+-- ALTER TABLE gyms ADD COLUMN IF NOT EXISTS facility_types facility_type[] DEFAULT '{gym}';
+-- ALTER TABLE gyms ADD COLUMN IF NOT EXISTS client_types client_type[] DEFAULT '{members}';
+
+-- Stripe Connect migration:
+-- ALTER TABLE gyms ADD COLUMN IF NOT EXISTS stripe_account_id TEXT;
+-- ALTER TABLE gyms ADD COLUMN IF NOT EXISTS stripe_connected_at TIMESTAMPTZ;
+-- ALTER TABLE gyms ADD COLUMN IF NOT EXISTS stripe_account_status TEXT DEFAULT 'disconnected';
+-- ALTER TABLE members ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT;
+-- ALTER TABLE payments ADD COLUMN IF NOT EXISTS stripe_payment_intent_id TEXT;
+-- ALTER TABLE payments ADD COLUMN IF NOT EXISTS stripe_invoice_id TEXT;
+-- ALTER TABLE payments ADD COLUMN IF NOT EXISTS stripe_charge_id TEXT;
+-- CREATE TABLE stripe_subscriptions (...);  -- See full schema above
 
 -- ============================================
 -- DONE!

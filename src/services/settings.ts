@@ -113,31 +113,97 @@ export const settingsService = {
     if (error) throw error;
   },
 
-  // Get gym settings (notification preferences, etc.)
-  async getSettings(gymId: string) {
+  // Get all settings for a gym (key-value store)
+  async getAllSettings(gymId: string) {
     const { data, error } = await supabase
       .from('settings')
-      .select('*')
-      .eq('gym_id', gymId)
-      .single();
+      .select('key, value')
+      .eq('gym_id', gymId);
 
-    if (error && error.code !== 'PGRST116') throw error; // PGRST116 = no rows
-    return data;
+    if (error) throw error;
+
+    // Convert array to object
+    const settings: Record<string, unknown> = {};
+    for (const row of data || []) {
+      settings[row.key] = row.value;
+    }
+    return settings;
   },
 
-  // Update gym settings
-  async updateSettings(gymId: string, settings: Record<string, unknown>) {
+  // Get a specific setting
+  async getSetting<T = unknown>(gymId: string, key: string): Promise<T | null> {
     const { data, error } = await supabase
       .from('settings')
-      .upsert({
-        gym_id: gymId,
-        ...settings,
-        updated_at: new Date().toISOString(),
-      })
+      .select('value')
+      .eq('gym_id', gymId)
+      .eq('key', key)
+      .single();
+
+    if (error && error.code !== 'PGRST116') throw error;
+    return data?.value as T | null;
+  },
+
+  // Set a specific setting (upsert)
+  async setSetting(gymId: string, key: string, value: unknown) {
+    const { data, error } = await supabase
+      .from('settings')
+      .upsert(
+        {
+          gym_id: gymId,
+          key,
+          value,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'gym_id,key' }
+      )
       .select()
       .single();
 
     if (error) throw error;
     return data;
   },
+
+  // Set multiple settings at once
+  async setMultipleSettings(gymId: string, settings: Record<string, unknown>) {
+    const rows = Object.entries(settings).map(([key, value]) => ({
+      gym_id: gymId,
+      key,
+      value,
+      updated_at: new Date().toISOString(),
+    }));
+
+    const { error } = await supabase
+      .from('settings')
+      .upsert(rows, { onConflict: 'gym_id,key' });
+
+    if (error) throw error;
+  },
+
+  // Delete a setting
+  async deleteSetting(gymId: string, key: string) {
+    const { error } = await supabase
+      .from('settings')
+      .delete()
+      .eq('gym_id', gymId)
+      .eq('key', key);
+
+    if (error) throw error;
+  },
+
+  // Notification preferences helpers
+  async getNotificationPreferences(gymId: string) {
+    return this.getSetting<NotificationPreferences>(gymId, 'notification_preferences');
+  },
+
+  async setNotificationPreferences(gymId: string, preferences: NotificationPreferences) {
+    return this.setSetting(gymId, 'notification_preferences', preferences);
+  },
 };
+
+// Type definitions for settings
+export interface NotificationPreferences {
+  newMemberSignups: boolean;
+  paymentAlerts: boolean;
+  sessionReminders: boolean;
+  marketingEmails: boolean;
+}

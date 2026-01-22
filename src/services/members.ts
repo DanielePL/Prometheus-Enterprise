@@ -1,11 +1,16 @@
 import { supabase } from '@/lib/supabase';
 import type { Member, InsertTables, UpdateTables } from '@/types/database';
+import { isDemoMode, DEMO_MEMBERS, DEMO_MEMBER_STATS } from './demoData';
 
 export type MemberInsert = InsertTables<'members'>;
 export type MemberUpdate = UpdateTables<'members'>;
 
 export const membersService = {
   async getAll(gymId: string) {
+    if (isDemoMode()) {
+      return DEMO_MEMBERS;
+    }
+
     const { data, error } = await supabase
       .from('members')
       .select(`
@@ -129,6 +134,10 @@ export const membersService = {
   },
 
   async getStats(gymId: string) {
+    if (isDemoMode()) {
+      return DEMO_MEMBER_STATS;
+    }
+
     const { data, error } = await supabase
       .from('members')
       .select('activity_status, membership_type')

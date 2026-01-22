@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { User, Session, AuthError } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import type { Profile, Gym, StaffRole } from '@/types/database';
+import { setDemoMode as persistDemoMode } from '@/services/demoData';
 
 interface AuthContextType {
   user: User | null;
@@ -9,15 +10,49 @@ interface AuthContextType {
   profile: Profile | null;
   gym: Gym | null;
   loading: boolean;
+  isDemoMode: boolean;
   signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
   signUp: (email: string, password: string, fullName: string, gymName?: string) => Promise<{ error: AuthError | null }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: AuthError | null }>;
   updatePassword: (password: string) => Promise<{ error: AuthError | null }>;
   updateProfile: (updates: Partial<Profile>) => Promise<{ error: Error | null }>;
+  demoLogin: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+// Demo data for presentation mode
+const DEMO_USER: User = {
+  id: 'demo-user-id',
+  email: 'demo@prometheus-gym.ch',
+  aud: 'authenticated',
+  role: 'authenticated',
+  app_metadata: {},
+  user_metadata: { full_name: 'Demo Admin' },
+  created_at: new Date().toISOString(),
+} as User;
+
+const DEMO_PROFILE: Profile = {
+  id: 'demo-user-id',
+  email: 'demo@prometheus-gym.ch',
+  full_name: 'Demo Admin',
+  gym_id: 'demo-gym-id',
+  role: 'owner',
+  avatar_url: null,
+  created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString(),
+};
+
+const DEMO_GYM: Gym = {
+  id: 'demo-gym-id',
+  name: 'Prometheus Fitness Studio',
+  address: 'Bahnhofstrasse 42, 8001 Zürich',
+  email: 'info@prometheus-gym.ch',
+  phone: '+41 44 123 45 67',
+  created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString(),
+};
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -25,10 +60,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [gym, setGym] = useState<Gym | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isDemoMode, setIsDemoMode] = useState(false);
 
   useEffect(() => {
-    // Get initial session
+    // Get initial session with timeout
+    const timeoutId = setTimeout(() => {
+      console.warn('Auth session check timed out');
+      setLoading(false);
+    }, 5000);
+
     supabase.auth.getSession().then(({ data: { session } }) => {
+      clearTimeout(timeoutId);
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
@@ -36,6 +78,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         setLoading(false);
       }
+    }).catch((error) => {
+      clearTimeout(timeoutId);
+      console.error('Error getting session:', error);
+      setLoading(false);
     });
 
     // Listen for auth changes
@@ -165,11 +211,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    if (!isDemoMode) {
+      await supabase.auth.signOut();
+    }
     setUser(null);
     setSession(null);
     setProfile(null);
     setGym(null);
+    setIsDemoMode(false);
+    persistDemoMode(false);
   };
 
   const resetPassword = async (email: string) => {
@@ -189,6 +239,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { error: new Error('No user logged in') };
     }
 
+    if (isDemoMode) {
+      // In demo mode, just update local state
+      if (profile) {
+        setProfile({ ...profile, ...updates });
+      }
+      return { error: null };
+    }
+
     const { error } = await supabase
       .from('profiles')
       .update(updates)
@@ -201,18 +259,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error };
   };
 
+  const demoLogin = () => {
+    setUser(DEMO_USER);
+    setProfile(DEMO_PROFILE);
+    setGym(DEMO_GYM);
+    setIsDemoMode(true);
+    persistDemoMode(true);
+    setLoading(false);
+  };
+
   const value = {
     user,
     session,
     profile,
     gym,
     loading,
+    isDemoMode,
     signIn,
     signUp,
     signOut,
     resetPassword,
     updatePassword,
     updateProfile,
+    demoLogin,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

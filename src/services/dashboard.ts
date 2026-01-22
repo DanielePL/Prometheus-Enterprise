@@ -1,7 +1,12 @@
 import { supabase } from '@/lib/supabase';
+import { isDemoMode, DEMO_OVERVIEW, DEMO_GROWTH, DEMO_OCCUPANCY_DATA } from './demoData';
 
 export const dashboardService = {
   async getOverview(gymId: string) {
+    if (isDemoMode()) {
+      return DEMO_OVERVIEW;
+    }
+
     const [members, coaches, payments, sessions, alerts] = await Promise.all([
       supabase
         .from('members')
@@ -114,6 +119,10 @@ export const dashboardService = {
   },
 
   async getOccupancyData(gymId: string) {
+    if (isDemoMode()) {
+      return DEMO_OCCUPANCY_DATA;
+    }
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -149,6 +158,10 @@ export const dashboardService = {
   },
 
   async getGrowthMetrics(gymId: string) {
+    if (isDemoMode()) {
+      return DEMO_GROWTH;
+    }
+
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);

@@ -4,14 +4,14 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Flame, Mail, Lock, Loader2 } from 'lucide-react';
+import { Flame, Mail, Lock, Loader2, Play } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const { signIn } = useAuth();
+  const { signIn, demoLogin } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -29,6 +29,12 @@ export default function Login() {
     }
   };
 
+  const handleDemoLogin = () => {
+    demoLogin();
+    toast.success('Demo mode activated');
+    navigate('/dashboard');
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-cover bg-center bg-fixed bg-no-repeat p-4"
       style={{ backgroundImage: "url('/gradient-bg-dark.png')" }}
@@ -41,7 +47,7 @@ export default function Login() {
               <Flame className="h-7 w-7 text-white" />
             </div>
             <span className="font-bold text-2xl text-foreground font-display">
-              Prometheus
+              Prometheus Enterprise
             </span>
           </div>
 
@@ -108,6 +114,25 @@ export default function Login() {
               )}
             </Button>
           </form>
+
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-border" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-card px-2 text-muted-foreground">Or</span>
+            </div>
+          </div>
+
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full border-primary/50 hover:bg-primary/10"
+            onClick={handleDemoLogin}
+          >
+            <Play className="mr-2 h-4 w-4" />
+            Start Demo Mode
+          </Button>
 
           <div className="mt-6 text-center">
             <span className="text-muted-foreground">Don't have an account? </span>

@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { isDemoMode } from './demoData';
 
 export type AlertSeverity = 'info' | 'warning' | 'critical';
 export type AlertType =
@@ -184,6 +185,10 @@ export const alertsService = {
 
   // Check and create automatic alerts based on business rules
   async checkAndCreateAlerts(gymId: string) {
+    if (isDemoMode()) {
+      return []; // Skip in demo mode
+    }
+
     const alerts: Promise<Alert>[] = [];
 
     // Check for expiring memberships (next 7 days)

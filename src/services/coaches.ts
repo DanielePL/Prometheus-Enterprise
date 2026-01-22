@@ -1,11 +1,16 @@
 import { supabase } from '@/lib/supabase';
 import type { Coach, InsertTables, UpdateTables } from '@/types/database';
+import { isDemoMode, DEMO_COACHES, DEMO_COACH_STATS } from './demoData';
 
 export type CoachInsert = InsertTables<'coaches'>;
 export type CoachUpdate = UpdateTables<'coaches'>;
 
 export const coachesService = {
   async getAll(gymId: string) {
+    if (isDemoMode()) {
+      return DEMO_COACHES;
+    }
+
     const { data, error } = await supabase
       .from('coaches')
       .select('*')
@@ -17,6 +22,10 @@ export const coachesService = {
   },
 
   async getActive(gymId: string) {
+    if (isDemoMode()) {
+      return DEMO_COACHES.filter(c => c.is_active);
+    }
+
     const { data, error } = await supabase
       .from('coaches')
       .select('*')
@@ -116,6 +125,10 @@ export const coachesService = {
   },
 
   async getStats(gymId: string) {
+    if (isDemoMode()) {
+      return DEMO_COACH_STATS;
+    }
+
     const { data, error } = await supabase
       .from('coaches')
       .select('is_active, client_count, revenue_this_month')

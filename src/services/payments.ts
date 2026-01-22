@@ -1,11 +1,16 @@
 import { supabase } from '@/lib/supabase';
 import type { Payment, InsertTables, UpdateTables } from '@/types/database';
+import { isDemoMode, DEMO_PAYMENTS, DEMO_PAYMENT_STATS, DEMO_REVENUE_BY_MONTH } from './demoData';
 
 export type PaymentInsert = InsertTables<'payments'>;
 export type PaymentUpdate = UpdateTables<'payments'>;
 
 export const paymentsService = {
   async getAll(gymId: string) {
+    if (isDemoMode()) {
+      return DEMO_PAYMENTS;
+    }
+
     const { data, error } = await supabase
       .from('payments')
       .select(`
@@ -105,6 +110,10 @@ export const paymentsService = {
   },
 
   async getOverdue(gymId: string) {
+    if (isDemoMode()) {
+      return DEMO_PAYMENTS.filter(p => p.status === 'overdue');
+    }
+
     const { data, error } = await supabase
       .from('payments')
       .select(`
@@ -120,6 +129,10 @@ export const paymentsService = {
   },
 
   async getStats(gymId: string) {
+    if (isDemoMode()) {
+      return DEMO_PAYMENT_STATS;
+    }
+
     const startOfMonth = new Date();
     startOfMonth.setDate(1);
     startOfMonth.setHours(0, 0, 0, 0);
@@ -159,6 +172,10 @@ export const paymentsService = {
   },
 
   async getRevenueByMonth(gymId: string, months = 12) {
+    if (isDemoMode()) {
+      return DEMO_REVENUE_BY_MONTH;
+    }
+
     const startDate = new Date();
     startDate.setMonth(startDate.getMonth() - months);
     startDate.setDate(1);

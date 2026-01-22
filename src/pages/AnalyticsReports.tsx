@@ -23,6 +23,15 @@ import { useAuth } from "@/contexts/AuthContext";
 import { dashboardService } from "@/services/dashboard";
 import { paymentsService } from "@/services/payments";
 import { membersService } from "@/services/members";
+import {
+  isDemoMode,
+  DEMO_RETENTION_DATA,
+  DEMO_CLASS_ATTENDANCE,
+  DEMO_COACH_PERFORMANCE,
+  DEMO_ACQUISITION_CHANNELS,
+  DEMO_CHURN_RISK,
+  DEMO_MONTHLY_COMPARISON,
+} from "@/services/demoData";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -40,10 +49,15 @@ import {
   Loader2,
   Activity,
   DollarSign,
+  Target,
+  AlertTriangle,
+  Award,
+  UserMinus,
+  Percent,
 } from "lucide-react";
 
 const CHART_COLORS = {
-  primary: "hsl(23, 87%, 55%)", // Prometheus orange
+  primary: "hsl(23, 87%, 55%)", // Prometheus Enterprise orange
   secondary: "hsl(220, 70%, 50%)",
   success: "hsl(142, 76%, 36%)",
   warning: "hsl(38, 92%, 50%)",
@@ -276,13 +290,218 @@ const AnalyticsReports = () => {
       )}
 
       {/* Tabs */}
-      <Tabs defaultValue="occupancy" className="space-y-4">
-        <TabsList className="backdrop-blur-md bg-card/80">
+      <Tabs defaultValue="overview" className="space-y-4">
+        <TabsList className="backdrop-blur-md bg-card/80 flex-wrap h-auto">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="occupancy">Occupancy</TabsTrigger>
           <TabsTrigger value="revenue">Revenue</TabsTrigger>
           <TabsTrigger value="members">Members</TabsTrigger>
+          <TabsTrigger value="coaches">Coaches</TabsTrigger>
           <TabsTrigger value="export">Export</TabsTrigger>
         </TabsList>
+
+        {/* Overview Tab */}
+        <TabsContent value="overview" className="space-y-4">
+          {/* Monthly Comparison Cards */}
+          {isDemoMode() && (
+            <>
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                {[
+                  { label: 'Total Visits', ...DEMO_MONTHLY_COMPARISON.visits, icon: Activity, prefix: '' },
+                  { label: 'New Members', ...DEMO_MONTHLY_COMPARISON.newMembers, icon: Users, prefix: '' },
+                  { label: 'Revenue', ...DEMO_MONTHLY_COMPARISON.revenue, icon: DollarSign, prefix: 'CHF ' },
+                  { label: 'Churn Rate', ...DEMO_MONTHLY_COMPARISON.churnRate, icon: UserMinus, suffix: '%', invertColor: true },
+                  { label: 'Avg Visits/Member', ...DEMO_MONTHLY_COMPARISON.avgVisitsPerMember, icon: Target, prefix: '' },
+                  { label: 'Class Attendance', ...DEMO_MONTHLY_COMPARISON.classAttendance, icon: Calendar, prefix: '' },
+                ].map((stat) => (
+                  <Card key={stat.label} className="backdrop-blur-md bg-card/80">
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <stat.icon className="h-5 w-5 text-primary" />
+                        <Badge
+                          variant="secondary"
+                          className={
+                            (stat.invertColor ? stat.change < 0 : stat.change > 0)
+                              ? "text-green-500"
+                              : "text-red-500"
+                          }
+                        >
+                          {(stat.invertColor ? stat.change < 0 : stat.change > 0) ? (
+                            <TrendingUp className="mr-1 h-3 w-3" />
+                          ) : (
+                            <TrendingDown className="mr-1 h-3 w-3" />
+                          )}
+                          {stat.change > 0 ? '+' : ''}{stat.change}%
+                        </Badge>
+                      </div>
+                      <p className="text-2xl font-bold">
+                        {stat.prefix}{stat.current.toLocaleString()}{stat.suffix || ''}
+                      </p>
+                      <p className="text-sm text-muted-foreground">{stat.label}</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        vs {stat.prefix}{stat.previous.toLocaleString()}{stat.suffix || ''} last month
+                      </p>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              <div className="grid lg:grid-cols-2 gap-6">
+                {/* Retention Rate Chart */}
+                <Card className="backdrop-blur-md bg-card/80">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Percent className="h-5 w-5 text-primary" />
+                      Member Retention Rate
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-64">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={DEMO_RETENTION_DATA}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                          <XAxis
+                            dataKey="month"
+                            tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
+                          />
+                          <YAxis
+                            domain={[80, 100]}
+                            tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
+                            tickFormatter={(value) => `${value}%`}
+                          />
+                          <Tooltip
+                            contentStyle={{
+                              backgroundColor: "hsl(var(--card))",
+                              border: "1px solid hsl(var(--border))",
+                              borderRadius: "8px",
+                            }}
+                            formatter={(value: number) => [`${value}%`, "Retention"]}
+                          />
+                          <Line
+                            type="monotone"
+                            dataKey="rate"
+                            stroke={CHART_COLORS.success}
+                            strokeWidth={3}
+                            dot={{ fill: CHART_COLORS.success, strokeWidth: 2 }}
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div className="mt-4 p-3 rounded-lg bg-green-500/10 border border-green-500/20">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">Current Retention</span>
+                        <Badge className="bg-green-500">94%</Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        +6% improvement from last month
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Acquisition Channels */}
+                <Card className="backdrop-blur-md bg-card/80">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Users className="h-5 w-5 text-primary" />
+                      Member Acquisition Channels
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-64">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={DEMO_ACQUISITION_CHANNELS}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={60}
+                            outerRadius={100}
+                            paddingAngle={2}
+                            dataKey="value"
+                            label={({ name, percent }) =>
+                              `${name} ${(percent * 100).toFixed(0)}%`
+                            }
+                          >
+                            {DEMO_ACQUISITION_CHANNELS.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={entry.color} />
+                            ))}
+                          </Pie>
+                          <Tooltip
+                            contentStyle={{
+                              backgroundColor: "hsl(var(--card))",
+                              border: "1px solid hsl(var(--border))",
+                              borderRadius: "8px",
+                            }}
+                            formatter={(value: number) => [`${value}%`, "Share"]}
+                          />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div className="mt-4 space-y-2">
+                      {DEMO_ACQUISITION_CHANNELS.map((channel) => (
+                        <div
+                          key={channel.name}
+                          className="flex items-center justify-between p-2 rounded bg-muted/50"
+                        >
+                          <div className="flex items-center gap-2">
+                            <div
+                              className="w-3 h-3 rounded-full"
+                              style={{ backgroundColor: channel.color }}
+                            />
+                            <span className="text-sm font-medium">{channel.name}</span>
+                          </div>
+                          <span className="text-sm text-muted-foreground">{channel.value}%</span>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Churn Risk Alert */}
+              <Card className="backdrop-blur-md bg-card/80 border-l-4 border-l-yellow-500">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <AlertTriangle className="h-5 w-5 text-yellow-500" />
+                    Churn Risk Members
+                    <Badge variant="secondary" className="ml-2">{DEMO_CHURN_RISK.length}</Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {DEMO_CHURN_RISK.map((member) => (
+                      <div
+                        key={member.id}
+                        className="p-3 rounded-lg bg-muted/50 border border-yellow-500/20"
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-medium">{member.name}</span>
+                          <Badge
+                            className={
+                              member.risk === 'high' ? 'bg-red-500' : 'bg-yellow-500'
+                            }
+                          >
+                            {member.risk}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          Last visit: {member.lastVisit}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {member.membership} membership
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-4">
+                    Consider reaching out to these members to improve retention.
+                  </p>
+                </CardContent>
+              </Card>
+            </>
+          )}
+        </TabsContent>
 
         {/* Occupancy Tab */}
         <TabsContent value="occupancy" className="space-y-4">
@@ -616,6 +835,150 @@ const AnalyticsReports = () => {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        {/* Coaches Tab */}
+        <TabsContent value="coaches" className="space-y-4">
+          {isDemoMode() && (
+            <>
+              <div className="grid lg:grid-cols-2 gap-6">
+                {/* Coach Performance Table */}
+                <Card className="backdrop-blur-md bg-card/80 lg:col-span-2">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Award className="h-5 w-5 text-primary" />
+                      Coach Performance Ranking
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="border-b border-border">
+                            <th className="text-left p-3 text-sm font-medium text-muted-foreground">Rank</th>
+                            <th className="text-left p-3 text-sm font-medium text-muted-foreground">Coach</th>
+                            <th className="text-right p-3 text-sm font-medium text-muted-foreground">Sessions</th>
+                            <th className="text-right p-3 text-sm font-medium text-muted-foreground">Revenue</th>
+                            <th className="text-right p-3 text-sm font-medium text-muted-foreground">Rating</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {DEMO_COACH_PERFORMANCE.map((coach, idx) => (
+                            <tr key={coach.name} className="border-b border-border/50 hover:bg-muted/50">
+                              <td className="p-3">
+                                <Badge
+                                  className={
+                                    idx === 0
+                                      ? 'bg-yellow-500'
+                                      : idx === 1
+                                      ? 'bg-gray-400'
+                                      : idx === 2
+                                      ? 'bg-orange-600'
+                                      : 'bg-muted'
+                                  }
+                                >
+                                  #{idx + 1}
+                                </Badge>
+                              </td>
+                              <td className="p-3 font-medium">{coach.name}</td>
+                              <td className="p-3 text-right">{coach.sessions}</td>
+                              <td className="p-3 text-right text-green-500">CHF {coach.revenue.toLocaleString()}</td>
+                              <td className="p-3 text-right">
+                                <div className="flex items-center justify-end gap-1">
+                                  <span className="text-yellow-500">★</span>
+                                  {coach.rating}
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Class Attendance */}
+                <Card className="backdrop-blur-md bg-card/80">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Calendar className="h-5 w-5 text-primary" />
+                      Class Attendance Rate
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-64">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={DEMO_CLASS_ATTENDANCE} layout="vertical">
+                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                          <XAxis
+                            type="number"
+                            domain={[0, 100]}
+                            tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
+                            tickFormatter={(value) => `${value}%`}
+                          />
+                          <YAxis
+                            type="category"
+                            dataKey="name"
+                            tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
+                            width={80}
+                          />
+                          <Tooltip
+                            contentStyle={{
+                              backgroundColor: "hsl(var(--card))",
+                              border: "1px solid hsl(var(--border))",
+                              borderRadius: "8px",
+                            }}
+                            formatter={(value: number) => [`${value}%`, "Attendance"]}
+                          />
+                          <Bar dataKey="rate" fill={CHART_COLORS.primary} radius={[0, 4, 4, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Class Stats */}
+                <Card className="backdrop-blur-md bg-card/80">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <BarChart3 className="h-5 w-5 text-primary" />
+                      Class Statistics
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {DEMO_CLASS_ATTENDANCE.map((cls) => (
+                      <div key={cls.name} className="p-3 rounded-lg bg-muted/50">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-medium">{cls.name}</span>
+                          <Badge
+                            className={
+                              cls.rate >= 85
+                                ? 'bg-green-500'
+                                : cls.rate >= 75
+                                ? 'bg-yellow-500'
+                                : 'bg-red-500'
+                            }
+                          >
+                            {cls.rate}%
+                          </Badge>
+                        </div>
+                        <div className="flex items-center justify-between text-sm text-muted-foreground">
+                          <span>{cls.attendance} / {cls.capacity} spots filled</span>
+                          <span>{cls.capacity - cls.attendance} available</span>
+                        </div>
+                        <div className="mt-2 h-2 bg-muted rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-primary rounded-full transition-all"
+                            style={{ width: `${cls.rate}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              </div>
+            </>
+          )}
         </TabsContent>
 
         {/* Export Tab */}

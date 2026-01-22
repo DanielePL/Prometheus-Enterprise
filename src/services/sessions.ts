@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import type { Session, InsertTables, UpdateTables } from '@/types/database';
+import { isDemoMode, DEMO_SESSIONS } from './demoData';
 
 export type SessionInsert = InsertTables<'sessions'>;
 export type SessionUpdate = UpdateTables<'sessions'>;
@@ -151,6 +152,10 @@ export const sessionsService = {
   },
 
   async getUpcoming(gymId: string, limit = 10) {
+    if (isDemoMode()) {
+      return DEMO_SESSIONS.filter(s => s.status === 'scheduled').slice(0, limit);
+    }
+
     const { data, error } = await supabase
       .from('sessions')
       .select(`
@@ -168,6 +173,10 @@ export const sessionsService = {
   },
 
   async getTodaySessions(gymId: string) {
+    if (isDemoMode()) {
+      return DEMO_SESSIONS;
+    }
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);

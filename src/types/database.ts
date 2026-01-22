@@ -14,6 +14,27 @@ export type StaffRole = 'owner' | 'admin' | 'manager' | 'coach' | 'receptionist'
 export type StripeAccountStatus = 'disconnected' | 'pending' | 'connected' | 'restricted';
 export type StripeSubscriptionStatus = 'incomplete' | 'incomplete_expired' | 'trialing' | 'active' | 'past_due' | 'canceled' | 'unpaid' | 'paused';
 
+// Access Control types
+export type AccessMethod = 'bluetooth' | 'face_recognition' | 'manual' | 'qr_code';
+export type AccessStatus = 'granted' | 'denied' | 'pending';
+
+// Opening hours structure
+export interface DaySchedule {
+  open: string;
+  close: string;
+  closed: boolean;
+}
+
+export interface OpeningHours {
+  monday: DaySchedule;
+  tuesday: DaySchedule;
+  wednesday: DaySchedule;
+  thursday: DaySchedule;
+  friday: DaySchedule;
+  saturday: DaySchedule;
+  sunday: DaySchedule;
+}
+
 // Facility types for different organizations
 export type FacilityType =
   | 'gym'
@@ -571,6 +592,7 @@ export interface Database {
           gym_id: string;
           check_in: string;
           check_out: string | null;
+          check_in_method: AccessMethod;
           created_at: string;
         };
         Insert: {
@@ -579,6 +601,7 @@ export interface Database {
           gym_id: string;
           check_in?: string;
           check_out?: string | null;
+          check_in_method?: AccessMethod;
           created_at?: string;
         };
         Update: {
@@ -587,7 +610,196 @@ export interface Database {
           gym_id?: string;
           check_in?: string;
           check_out?: string | null;
+          check_in_method?: AccessMethod;
           created_at?: string;
+        };
+      };
+      member_face_data: {
+        Row: {
+          id: string;
+          member_id: string;
+          gym_id: string;
+          face_descriptor: number[];
+          photo_url: string | null;
+          match_threshold: number;
+          is_active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          member_id: string;
+          gym_id: string;
+          face_descriptor: number[];
+          photo_url?: string | null;
+          match_threshold?: number;
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          member_id?: string;
+          gym_id?: string;
+          face_descriptor?: number[];
+          photo_url?: string | null;
+          match_threshold?: number;
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      member_bluetooth_devices: {
+        Row: {
+          id: string;
+          member_id: string;
+          gym_id: string;
+          device_id: string;
+          device_name: string | null;
+          device_type: string | null;
+          is_active: boolean;
+          last_seen: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          member_id: string;
+          gym_id: string;
+          device_id: string;
+          device_name?: string | null;
+          device_type?: string | null;
+          is_active?: boolean;
+          last_seen?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          member_id?: string;
+          gym_id?: string;
+          device_id?: string;
+          device_name?: string | null;
+          device_type?: string | null;
+          is_active?: boolean;
+          last_seen?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      access_logs: {
+        Row: {
+          id: string;
+          gym_id: string;
+          member_id: string | null;
+          access_method: AccessMethod;
+          access_status: AccessStatus;
+          confidence_score: number | null;
+          device_id: string | null;
+          denial_reason: string | null;
+          terminal_id: string | null;
+          terminal_name: string | null;
+          ip_address: string | null;
+          user_agent: string | null;
+          attempted_at: string;
+          visit_id: string | null;
+        };
+        Insert: {
+          id?: string;
+          gym_id: string;
+          member_id?: string | null;
+          access_method: AccessMethod;
+          access_status: AccessStatus;
+          confidence_score?: number | null;
+          device_id?: string | null;
+          denial_reason?: string | null;
+          terminal_id?: string | null;
+          terminal_name?: string | null;
+          ip_address?: string | null;
+          user_agent?: string | null;
+          attempted_at?: string;
+          visit_id?: string | null;
+        };
+        Update: {
+          id?: string;
+          gym_id?: string;
+          member_id?: string | null;
+          access_method?: AccessMethod;
+          access_status?: AccessStatus;
+          confidence_score?: number | null;
+          device_id?: string | null;
+          denial_reason?: string | null;
+          terminal_id?: string | null;
+          terminal_name?: string | null;
+          ip_address?: string | null;
+          user_agent?: string | null;
+          attempted_at?: string;
+          visit_id?: string | null;
+        };
+      };
+      gym_access_settings: {
+        Row: {
+          id: string;
+          gym_id: string;
+          bluetooth_enabled: boolean;
+          face_recognition_enabled: boolean;
+          qr_code_enabled: boolean;
+          manual_checkin_enabled: boolean;
+          face_match_threshold: number;
+          require_liveness_check: boolean;
+          bluetooth_range_meters: number;
+          auto_checkout_enabled: boolean;
+          auto_checkout_minutes: number;
+          require_active_membership: boolean;
+          allow_expired_grace_days: number;
+          opening_hours: OpeningHours;
+          holiday_closures: string[];
+          notify_on_denied_access: boolean;
+          notify_on_after_hours_attempt: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          gym_id: string;
+          bluetooth_enabled?: boolean;
+          face_recognition_enabled?: boolean;
+          qr_code_enabled?: boolean;
+          manual_checkin_enabled?: boolean;
+          face_match_threshold?: number;
+          require_liveness_check?: boolean;
+          bluetooth_range_meters?: number;
+          auto_checkout_enabled?: boolean;
+          auto_checkout_minutes?: number;
+          require_active_membership?: boolean;
+          allow_expired_grace_days?: number;
+          opening_hours?: OpeningHours;
+          holiday_closures?: string[];
+          notify_on_denied_access?: boolean;
+          notify_on_after_hours_attempt?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          gym_id?: string;
+          bluetooth_enabled?: boolean;
+          face_recognition_enabled?: boolean;
+          qr_code_enabled?: boolean;
+          manual_checkin_enabled?: boolean;
+          face_match_threshold?: number;
+          require_liveness_check?: boolean;
+          bluetooth_range_meters?: number;
+          auto_checkout_enabled?: boolean;
+          auto_checkout_minutes?: number;
+          require_active_membership?: boolean;
+          allow_expired_grace_days?: number;
+          opening_hours?: OpeningHours;
+          holiday_closures?: string[];
+          notify_on_denied_access?: boolean;
+          notify_on_after_hours_attempt?: boolean;
+          created_at?: string;
+          updated_at?: string;
         };
       };
     };
@@ -626,3 +838,9 @@ export type Alert = Tables<'alerts'>;
 export type Setting = Tables<'settings'>;
 export type MemberVisit = Tables<'member_visits'>;
 export type StripeSubscription = Tables<'stripe_subscriptions'>;
+
+// Access Control exports
+export type MemberFaceData = Tables<'member_face_data'>;
+export type MemberBluetoothDevice = Tables<'member_bluetooth_devices'>;
+export type AccessLog = Tables<'access_logs'>;
+export type GymAccessSettings = Tables<'gym_access_settings'>;

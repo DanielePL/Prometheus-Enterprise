@@ -41,6 +41,7 @@ import type { Profile, StaffRole, FacilityType, ClientType } from "@/types/datab
 import { Checkbox } from "@/components/ui/checkbox";
 import { StripeConnectionCard } from "@/components/stripe";
 import { stripe } from "@/services/stripeService";
+import AccessSettings from "@/components/access/AccessSettings";
 
 // Facility type options
 const FACILITY_TYPES: { value: FacilityType; label: string; description: string }[] = [
@@ -310,6 +311,7 @@ const GymSettings = () => {
         <TabsList className="glass flex-wrap">
           <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="facility">Facility Type</TabsTrigger>
+          <TabsTrigger value="access">Access Control</TabsTrigger>
           <TabsTrigger value="users">Team</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
           <TabsTrigger value="integrations">Integrations</TabsTrigger>
@@ -548,6 +550,11 @@ const GymSettings = () => {
               </Button>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Access Control Tab */}
+        <TabsContent value="access" className="space-y-4">
+          {gymId && <AccessSettings gymId={gymId} />}
         </TabsContent>
 
         {/* Users Tab */}

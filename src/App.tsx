@@ -15,6 +15,8 @@ import FinancialOverview from "./pages/FinancialOverview";
 import AnalyticsReports from "./pages/AnalyticsReports";
 import Inbox from "./pages/Inbox";
 import GymSettings from "./pages/GymSettings";
+import CheckInTerminal from "./pages/CheckInTerminal";
+import AccessLogs from "./pages/AccessLogs";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -131,6 +133,25 @@ function App() {
             <AppLayout>
               <GymSettings />
             </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/access-logs"
+        element={
+          <ProtectedRoute>
+            <AppLayout>
+              <AccessLogs />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+      {/* Check-in Terminal - No layout, full screen kiosk mode */}
+      <Route
+        path="/terminal"
+        element={
+          <ProtectedRoute>
+            <CheckInTerminal />
           </ProtectedRoute>
         }
       />

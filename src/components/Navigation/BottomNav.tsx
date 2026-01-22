@@ -5,12 +5,13 @@ import {
   Users,
   BarChart3,
   Settings,
+  Shield,
 } from "lucide-react";
 
 const navItems = [
   { to: "/dashboard", icon: LayoutDashboard, label: "Home" },
-  { to: "/coaches", icon: UserCheck, label: "Coaches" },
   { to: "/members", icon: Users, label: "Members" },
+  { to: "/access-logs", icon: Shield, label: "Access" },
   { to: "/analytics", icon: BarChart3, label: "Analytics" },
   { to: "/settings", icon: Settings, label: "Settings" },
 ];

@@ -10,6 +10,7 @@ import {
   MessageSquare,
   Settings,
   Flame,
+  Shield,
 } from "lucide-react";
 import {
   Tooltip,
@@ -23,6 +24,7 @@ const navItems = [
   { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
   { to: "/coaches", icon: UserCheck, label: "Coaches" },
   { to: "/members", icon: Users, label: "Members" },
+  { to: "/access-logs", icon: Shield, label: "Access" },
   { to: "/financials", icon: DollarSign, label: "Financials" },
   { to: "/analytics", icon: BarChart3, label: "Analytics" },
   { to: "/calendar", icon: Calendar, label: "Calendar" },

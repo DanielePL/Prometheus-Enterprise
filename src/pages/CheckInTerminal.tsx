@@ -17,12 +17,19 @@ import {
   Clock,
   Settings,
   LogOut,
+  AlertCircle,
+  Heart,
+  CreditCard,
+  Users,
+  MessageSquare,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { accessControlService } from '@/services/accessControl';
 import { faceRecognitionService } from '@/services/faceRecognition';
 import { deviceCheckinService } from '@/services/bluetoothCheckin';
 import { membersService } from '@/services/members';
+import { memberNotesService } from '@/services/memberNotes';
+import { MemberNote } from '@/services/demoData';
 import { Member, MemberFaceData, GymAccessSettings } from '@/types/database';
 
 type CheckInMode = 'idle' | 'face' | 'search' | 'device';
@@ -32,6 +39,7 @@ interface CheckInResult {
   status: CheckInStatus;
   member?: Member;
   message: string;
+  notes?: MemberNote[];
 }
 
 export default function CheckInTerminal() {
@@ -140,10 +148,13 @@ export default function CheckInTerminal() {
         );
 
         if (checkInResult.success) {
+          // Fetch member notes for the check-in alert
+          const notes = await memberNotesService.getByMember(matchResult.memberId);
           setResult({
             status: 'success',
             member: checkInResult.member,
             message: `Welcome, ${checkInResult.member?.name}!`,
+            notes: notes.length > 0 ? notes : undefined,
           });
         } else {
           setResult({
@@ -220,10 +231,13 @@ export default function CheckInTerminal() {
       );
 
       if (checkInResult.success) {
+        // Fetch member notes for the check-in alert
+        const notes = await memberNotesService.getByMember(member.id);
         setResult({
           status: 'success',
           member: checkInResult.member,
           message: `Welcome, ${checkInResult.member?.name}!`,
+          notes: notes.length > 0 ? notes : undefined,
         });
         setSearchQuery('');
         setSearchResults([]);
@@ -269,10 +283,13 @@ export default function CheckInTerminal() {
         );
 
         if (checkInResult.success) {
+          // Fetch member notes for the check-in alert
+          const notes = await memberNotesService.getByMember(device.member_id);
           setResult({
             status: 'success',
             member: checkInResult.member,
             message: `Welcome, ${checkInResult.member?.name}!`,
+            notes: notes.length > 0 ? notes : undefined,
           });
         } else {
           setResult({
@@ -305,13 +322,14 @@ export default function CheckInTerminal() {
     setSearchResults([]);
   };
 
-  // Auto-reset after success/denied
+  // Auto-reset after success/denied (longer timeout if there are notes)
   useEffect(() => {
     if (result?.status === 'success' || result?.status === 'denied') {
-      const timer = setTimeout(resetToIdle, 4000);
+      const timeout = result?.notes?.length ? 8000 : 4000; // More time to read notes
+      const timer = setTimeout(resetToIdle, timeout);
       return () => clearTimeout(timer);
     }
-  }, [result?.status]);
+  }, [result?.status, result?.notes]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white flex flex-col">
@@ -357,22 +375,56 @@ export default function CheckInTerminal() {
           <div
             className={`fixed inset-0 z-50 flex items-center justify-center ${
               result.status === 'success'
-                ? 'bg-green-500/90'
+                ? result.notes?.length ? 'bg-gradient-to-b from-green-500/95 to-orange-500/95' : 'bg-green-500/90'
                 : 'bg-red-500/90'
             }`}
           >
-            <div className="text-center">
+            <div className="text-center max-w-2xl px-8">
               {result.status === 'success' ? (
-                <CheckCircle2 className="h-32 w-32 mx-auto mb-6" />
+                <CheckCircle2 className="h-24 w-24 mx-auto mb-4" />
               ) : (
-                <XCircle className="h-32 w-32 mx-auto mb-6" />
+                <XCircle className="h-24 w-24 mx-auto mb-4" />
               )}
               <h2 className="text-4xl font-bold mb-4">{result.message}</h2>
               {result.member && (
-                <div className="flex items-center justify-center gap-2">
+                <div className="flex items-center justify-center gap-2 mb-6">
                   <Badge variant="secondary" className="text-lg px-4 py-2">
                     {result.member.membership_type.toUpperCase()}
                   </Badge>
+                </div>
+              )}
+
+              {/* Member Notes Alert */}
+              {result.notes && result.notes.length > 0 && (
+                <div className="mt-4 bg-white/20 backdrop-blur-sm rounded-xl p-6 text-left">
+                  <div className="flex items-center gap-2 mb-4">
+                    <AlertCircle className="h-6 w-6" />
+                    <span className="text-xl font-bold">Staff Notes</span>
+                  </div>
+                  <div className="space-y-3">
+                    {result.notes.map((note) => (
+                      <div key={note.id} className="flex items-start gap-3 bg-white/10 rounded-lg p-3">
+                        <div className={`p-2 rounded-full flex-shrink-0 ${
+                          note.priority === 'high' ? 'bg-red-600' :
+                          note.priority === 'medium' ? 'bg-yellow-600' : 'bg-blue-600'
+                        }`}>
+                          {note.category === 'health' ? <Heart className="h-4 w-4" /> :
+                           note.category === 'payment' ? <CreditCard className="h-4 w-4" /> :
+                           note.category === 'personal' ? <Users className="h-4 w-4" /> :
+                           <MessageSquare className="h-4 w-4" />}
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-lg font-medium">{note.note}</p>
+                          <p className="text-sm opacity-75 mt-1">
+                            {note.category.charAt(0).toUpperCase() + note.category.slice(1)} • {note.created_by}
+                          </p>
+                        </div>
+                        {note.priority === 'high' && (
+                          <Badge className="bg-red-600 text-white">Important</Badge>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>

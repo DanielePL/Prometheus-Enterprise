@@ -42,6 +42,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { StripeConnectionCard } from "@/components/stripe";
 import { stripe } from "@/services/stripeService";
 import AccessSettings from "@/components/access/AccessSettings";
+import { mockDataService } from "@/services/mockData";
+import { Database, Sparkles, Trash2 } from "lucide-react";
 
 // Facility type options
 const FACILITY_TYPES: { value: FacilityType; label: string; description: string }[] = [
@@ -316,6 +318,7 @@ const GymSettings = () => {
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
           <TabsTrigger value="integrations">Integrations</TabsTrigger>
           <TabsTrigger value="appearance">Appearance</TabsTrigger>
+          <TabsTrigger value="demo">Demo Data</TabsTrigger>
         </TabsList>
 
         {/* Profile Tab */}
@@ -804,6 +807,104 @@ const GymSettings = () => {
                   <Moon className="h-4 w-4 mr-2" />
                   Dark
                 </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Demo Data Tab */}
+        <TabsContent value="demo" className="space-y-4">
+          <Card className="glass-card">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Database className="h-5 w-5 text-primary" />
+                Demo Data Generator
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="bg-gradient-to-r from-green-500/10 to-emerald-500/10 rounded-lg p-6 border border-green-500/20">
+                <div className="flex items-start gap-4">
+                  <div className="p-3 rounded-lg bg-green-500/20">
+                    <Sparkles className="h-8 w-8 text-green-500" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold mb-2">Generate Demo Data</h3>
+                    <p className="text-muted-foreground mb-4">
+                      Populate your dashboard with realistic demo data including members, coaches, sessions,
+                      payments, and visit history. Perfect for demos and testing.
+                    </p>
+                    <div className="grid md:grid-cols-4 gap-4 mb-4 text-sm">
+                      <div className="bg-background/50 rounded-lg p-3">
+                        <p className="font-semibold text-2xl">127</p>
+                        <p className="text-muted-foreground">Members</p>
+                      </div>
+                      <div className="bg-background/50 rounded-lg p-3">
+                        <p className="font-semibold text-2xl">6</p>
+                        <p className="text-muted-foreground">Coaches</p>
+                      </div>
+                      <div className="bg-background/50 rounded-lg p-3">
+                        <p className="font-semibold text-2xl">60</p>
+                        <p className="text-muted-foreground">Days of History</p>
+                      </div>
+                      <div className="bg-background/50 rounded-lg p-3">
+                        <p className="font-semibold text-2xl">8</p>
+                        <p className="text-muted-foreground">Sessions/Day</p>
+                      </div>
+                    </div>
+                    <Button
+                      className="bg-green-500 hover:bg-green-600"
+                      onClick={async () => {
+                        if (!gymId) return;
+                        toast.loading("Generating demo data...", { id: "demo-data" });
+                        try {
+                          await mockDataService.seedDemoData(gymId);
+                          queryClient.invalidateQueries();
+                          toast.success("Demo data generated successfully!", { id: "demo-data" });
+                        } catch (error) {
+                          toast.error("Failed to generate demo data", { id: "demo-data" });
+                          console.error(error);
+                        }
+                      }}
+                    >
+                      <Sparkles className="h-4 w-4 mr-2" />
+                      Generate Demo Data
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-gradient-to-r from-red-500/10 to-rose-500/10 rounded-lg p-6 border border-red-500/20">
+                <div className="flex items-start gap-4">
+                  <div className="p-3 rounded-lg bg-red-500/20">
+                    <Trash2 className="h-8 w-8 text-red-500" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold mb-2">Clear All Data</h3>
+                    <p className="text-muted-foreground mb-4">
+                      Remove all members, coaches, sessions, payments, and other data.
+                      This action cannot be undone.
+                    </p>
+                    <Button
+                      variant="destructive"
+                      onClick={async () => {
+                        if (!gymId) return;
+                        if (!confirm("Are you sure you want to delete ALL data? This cannot be undone.")) return;
+                        toast.loading("Clearing all data...", { id: "clear-data" });
+                        try {
+                          await mockDataService.clearAllData(gymId);
+                          queryClient.invalidateQueries();
+                          toast.success("All data cleared successfully!", { id: "clear-data" });
+                        } catch (error) {
+                          toast.error("Failed to clear data", { id: "clear-data" });
+                          console.error(error);
+                        }
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Clear All Data
+                    </Button>
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Table,
   TableBody,
@@ -28,6 +29,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
   Users,
   UserPlus,
   Search,
@@ -40,17 +48,28 @@ import {
   Trash2,
   LogIn,
   Loader2,
+  Clock,
+  Sparkles,
+  StickyNote,
+  Plus,
+  X,
+  Heart,
+  CreditCard,
+  MessageSquare,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { membersService } from "@/services/members";
 import { coachesService } from "@/services/coaches";
+import { memberNotesService } from "@/services/memberNotes";
+import { MemberNote } from "@/services/demoData";
 import MemberDialog, { MemberFormData } from "@/components/members/MemberDialog";
 import DeleteMemberDialog from "@/components/members/DeleteMemberDialog";
 import type { Member, Coach, ActivityStatus, MembershipType } from "@/types/database";
+import { format } from "date-fns";
 
 const MemberCRM = () => {
-  const { gym } = useAuth();
+  const { gym, profile } = useAuth();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -58,6 +77,11 @@ const MemberCRM = () => {
   const [memberDialogOpen, setMemberDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
+  const [noteDialogOpen, setNoteDialogOpen] = useState(false);
+  const [noteMember, setNoteMember] = useState<Member | null>(null);
+  const [newNote, setNewNote] = useState("");
+  const [notePriority, setNotePriority] = useState<"low" | "medium" | "high">("medium");
+  const [noteCategory, setNoteCategory] = useState<"health" | "personal" | "payment" | "other">("other");
 
   // Fetch members
   const { data: members = [], isLoading: membersLoading } = useQuery({
@@ -72,6 +96,54 @@ const MemberCRM = () => {
     queryFn: () => (gym?.id ? coachesService.getActive(gym.id) : Promise.resolve([])),
     enabled: !!gym?.id,
   });
+
+  // Fetch notes for all members
+  const memberIds = useMemo(() => members.map((m: Member) => m.id), [members]);
+  const { data: memberNotes = {} } = useQuery({
+    queryKey: ["memberNotes", memberIds],
+    queryFn: () => memberNotesService.getActiveNotesForMembers(memberIds),
+    enabled: memberIds.length > 0,
+  });
+
+  // Create note mutation
+  const createNoteMutation = useMutation({
+    mutationFn: (data: { member_id: string; note: string; priority: "low" | "medium" | "high"; category: "health" | "personal" | "payment" | "other" }) =>
+      memberNotesService.create({
+        ...data,
+        created_by: profile?.name || "Staff",
+        is_active: true,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["memberNotes"] });
+      toast.success("Note added successfully");
+      setNoteDialogOpen(false);
+      setNewNote("");
+      setNotePriority("medium");
+      setNoteCategory("other");
+    },
+    onError: (error: Error) => {
+      toast.error(`Error: ${error.message}`);
+    },
+  });
+
+  // Delete note mutation
+  const deleteNoteMutation = useMutation({
+    mutationFn: (noteId: string) => memberNotesService.deactivate(noteId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["memberNotes"] });
+      toast.success("Note removed");
+    },
+  });
+
+  // Filter members added today from the main members list
+  const todayMembers = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return members.filter((m: Member) => {
+      const createdAt = new Date(m.created_at);
+      return createdAt >= today;
+    });
+  }, [members]);
 
   // Create member mutation
   const createMutation = useMutation({
@@ -167,9 +239,50 @@ const MemberCRM = () => {
     [members]
   );
 
+  // Get all members with notes
+  const membersWithNotes = useMemo(() => {
+    return members.filter((m: Member) => memberNotes[m.id]?.length > 0);
+  }, [members, memberNotes]);
+
   const handleAddMember = () => {
     setSelectedMember(null);
     setMemberDialogOpen(true);
+  };
+
+  const handleAddNote = (member: Member) => {
+    setNoteMember(member);
+    setNewNote("");
+    setNotePriority("medium");
+    setNoteCategory("other");
+    setNoteDialogOpen(true);
+  };
+
+  const handleSaveNote = () => {
+    if (!noteMember || !newNote.trim()) return;
+    createNoteMutation.mutate({
+      member_id: noteMember.id,
+      note: newNote.trim(),
+      priority: notePriority,
+      category: noteCategory,
+    });
+  };
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case "high": return "bg-red-500";
+      case "medium": return "bg-yellow-500";
+      case "low": return "bg-blue-500";
+      default: return "bg-gray-500";
+    }
+  };
+
+  const getCategoryIcon = (category: string) => {
+    switch (category) {
+      case "health": return <Heart className="h-4 w-4" />;
+      case "payment": return <CreditCard className="h-4 w-4" />;
+      case "personal": return <Users className="h-4 w-4" />;
+      default: return <MessageSquare className="h-4 w-4" />;
+    }
   };
 
   const handleEditMember = (member: Member) => {
@@ -330,8 +443,24 @@ const MemberCRM = () => {
 
       {/* Tabs */}
       <Tabs defaultValue="database" className="space-y-4">
-        <TabsList className="glass">
+        <TabsList className="glass flex-wrap">
           <TabsTrigger value="database">Database</TabsTrigger>
+          <TabsTrigger value="notes" className="relative">
+            Notes
+            {membersWithNotes.length > 0 && (
+              <Badge variant="default" className="ml-2 bg-orange-500 text-white text-xs px-1.5 py-0">
+                {membersWithNotes.length}
+              </Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="today" className="relative">
+            Added Today
+            {todayMembers.length > 0 && (
+              <Badge variant="default" className="ml-2 bg-green-500 text-white text-xs px-1.5 py-0">
+                {todayMembers.length}
+              </Badge>
+            )}
+          </TabsTrigger>
           <TabsTrigger value="retention">Retention</TabsTrigger>
           <TabsTrigger value="communication">Communication</TabsTrigger>
         </TabsList>
@@ -364,14 +493,21 @@ const MemberCRM = () => {
                       <TableRow key={member.id} className="cursor-pointer hover:bg-muted/50">
                         <TableCell>
                           <div className="flex items-center gap-3">
-                            <Avatar className="h-10 w-10">
-                              <AvatarFallback className="bg-primary/20 text-primary">
-                                {member.name
-                                  .split(" ")
-                                  .map((n) => n[0])
-                                  .join("")}
-                              </AvatarFallback>
-                            </Avatar>
+                            <div className="relative">
+                              <Avatar className="h-10 w-10">
+                                <AvatarFallback className="bg-primary/20 text-primary">
+                                  {member.name
+                                    .split(" ")
+                                    .map((n) => n[0])
+                                    .join("")}
+                                </AvatarFallback>
+                              </Avatar>
+                              {memberNotes[member.id]?.length > 0 && (
+                                <div className="absolute -top-1 -right-1 h-4 w-4 bg-orange-500 rounded-full flex items-center justify-center">
+                                  <StickyNote className="h-2.5 w-2.5 text-white" />
+                                </div>
+                              )}
+                            </div>
                             <div>
                               <p className="font-medium">{member.name}</p>
                               <p className="text-sm text-muted-foreground hidden sm:block">
@@ -411,6 +547,10 @@ const MemberCRM = () => {
                                   <Pencil className="h-4 w-4 mr-2" />
                                   Edit
                                 </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleAddNote(member)}>
+                                  <StickyNote className="h-4 w-4 mr-2" />
+                                  Add Note
+                                </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
                                   className="text-destructive"
@@ -428,6 +568,197 @@ const MemberCRM = () => {
                   )}
                 </TableBody>
               </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Notes Tab */}
+        <TabsContent value="notes">
+          <Card className="glass-card">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <StickyNote className="h-5 w-5 text-orange-500" />
+                Member Notes & Reminders
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {membersWithNotes.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <StickyNote className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                  <p className="text-lg font-medium">No notes yet</p>
+                  <p className="text-sm">Add notes to members to see reminders when they check in</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {membersWithNotes.map((member: Member) => (
+                    <div key={member.id} className="border border-border rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-10 w-10">
+                            <AvatarFallback className="bg-primary/20 text-primary">
+                              {member.name.split(" ").map((n) => n[0]).join("")}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="font-medium">{member.name}</p>
+                            <p className="text-sm text-muted-foreground">{member.email}</p>
+                          </div>
+                        </div>
+                        <Button variant="outline" size="sm" onClick={() => handleAddNote(member)}>
+                          <Plus className="h-4 w-4 mr-1" />
+                          Add Note
+                        </Button>
+                      </div>
+                      <div className="space-y-2">
+                        {memberNotes[member.id]?.map((note: MemberNote) => (
+                          <div
+                            key={note.id}
+                            className="flex items-start gap-3 p-3 rounded-lg bg-muted/50"
+                          >
+                            <div className={`mt-0.5 p-1.5 rounded-full ${getPriorityColor(note.priority)}`}>
+                              {getCategoryIcon(note.category)}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm">{note.note}</p>
+                              <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                                <span>{note.created_by}</span>
+                                <span>•</span>
+                                <span>{format(new Date(note.created_at), "MMM d, yyyy")}</span>
+                                <Badge variant="outline" className="text-xs ml-auto">
+                                  {note.priority}
+                                </Badge>
+                              </div>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                              onClick={() => deleteNoteMutation.mutate(note.id)}
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Added Today Tab */}
+        <TabsContent value="today">
+          <Card className="glass-card">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-green-500" />
+                New Members Today
+                <Badge variant="outline" className="ml-2">
+                  {format(new Date(), "EEEE, MMM d")}
+                </Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {todayMembers.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <UserPlus className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                  <p className="text-lg font-medium">No new members today yet</p>
+                  <p className="text-sm">New sign-ups will appear here</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* Summary Cards */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                    <div className="bg-gradient-to-br from-amber-500/20 to-amber-600/10 rounded-lg p-4 border border-amber-500/20">
+                      <p className="text-2xl font-bold text-amber-500">
+                        {todayMembers.filter((m: Member) => m.membership_type === 'vip').length}
+                      </p>
+                      <p className="text-sm text-muted-foreground">VIP Members</p>
+                      <p className="text-xs text-amber-500/80 mt-1">CHF 149/mo</p>
+                    </div>
+                    <div className="bg-gradient-to-br from-purple-500/20 to-purple-600/10 rounded-lg p-4 border border-purple-500/20">
+                      <p className="text-2xl font-bold text-purple-500">
+                        {todayMembers.filter((m: Member) => m.membership_type === 'premium').length}
+                      </p>
+                      <p className="text-sm text-muted-foreground">Premium</p>
+                      <p className="text-xs text-purple-500/80 mt-1">CHF 89/mo</p>
+                    </div>
+                    <div className="bg-gradient-to-br from-blue-500/20 to-blue-600/10 rounded-lg p-4 border border-blue-500/20">
+                      <p className="text-2xl font-bold text-blue-500">
+                        {todayMembers.filter((m: Member) => m.membership_type === 'basic').length}
+                      </p>
+                      <p className="text-sm text-muted-foreground">Basic</p>
+                      <p className="text-xs text-blue-500/80 mt-1">CHF 49/mo</p>
+                    </div>
+                    <div className="bg-gradient-to-br from-gray-500/20 to-gray-600/10 rounded-lg p-4 border border-gray-500/20">
+                      <p className="text-2xl font-bold text-gray-500">
+                        {todayMembers.filter((m: Member) => m.membership_type === 'trial').length}
+                      </p>
+                      <p className="text-sm text-muted-foreground">Trial</p>
+                      <p className="text-xs text-gray-500/80 mt-1">Free</p>
+                    </div>
+                  </div>
+
+                  {/* Today's Revenue */}
+                  <div className="bg-gradient-to-r from-green-500/10 to-emerald-500/10 rounded-lg p-4 border border-green-500/20 mb-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-muted-foreground">New MRR Today</p>
+                        <p className="text-3xl font-bold text-green-500">
+                          CHF {todayMembers.reduce((sum: number, m: Member) => sum + m.monthly_fee, 0)}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm text-muted-foreground">Annual Value</p>
+                        <p className="text-xl font-semibold text-green-400">
+                          CHF {todayMembers.reduce((sum: number, m: Member) => sum + m.monthly_fee * 12, 0).toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Member List */}
+                  <div className="space-y-3">
+                    {todayMembers.map((member: Member) => (
+                      <div
+                        key={member.id}
+                        className="flex items-center justify-between p-4 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
+                      >
+                        <div className="flex items-center gap-4">
+                          <Avatar className="h-12 w-12">
+                            <AvatarFallback className="bg-primary/20 text-primary text-lg">
+                              {member.name
+                                .split(" ")
+                                .map((n) => n[0])
+                                .join("")}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="font-medium text-lg">{member.name}</p>
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                              <Clock className="h-3 w-3" />
+                              {format(new Date(member.created_at), "HH:mm")} Uhr
+                              <span className="mx-1">•</span>
+                              {member.email}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          {getMembershipBadge(member.membership_type)}
+                          <div className="text-right">
+                            <p className="font-semibold">
+                              {member.monthly_fee > 0 ? `CHF ${member.monthly_fee}` : 'Free'}
+                            </p>
+                            <p className="text-xs text-muted-foreground">/month</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -523,6 +854,71 @@ const MemberCRM = () => {
         member={selectedMember}
         onConfirm={handleConfirmDelete}
       />
+
+      {/* Add Note Dialog */}
+      <Dialog open={noteDialogOpen} onOpenChange={setNoteDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <StickyNote className="h-5 w-5 text-orange-500" />
+              Add Note for {noteMember?.name}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <label className="text-sm font-medium mb-2 block">Note</label>
+              <Textarea
+                placeholder="e.g., Knee surgery - ask about recovery..."
+                value={newNote}
+                onChange={(e) => setNewNote(e.target.value)}
+                rows={3}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium mb-2 block">Priority</label>
+                <Select value={notePriority} onValueChange={(v) => setNotePriority(v as "low" | "medium" | "high")}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="low">Low</SelectItem>
+                    <SelectItem value="medium">Medium</SelectItem>
+                    <SelectItem value="high">High</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-2 block">Category</label>
+                <Select value={noteCategory} onValueChange={(v) => setNoteCategory(v as "health" | "personal" | "payment" | "other")}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="health">Health</SelectItem>
+                    <SelectItem value="personal">Personal</SelectItem>
+                    <SelectItem value="payment">Payment</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNoteDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveNote} disabled={!newNote.trim() || createNoteMutation.isPending}>
+              {createNoteMutation.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Plus className="h-4 w-4 mr-2" />
+              )}
+              Add Note
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

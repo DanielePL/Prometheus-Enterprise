@@ -6,7 +6,7 @@
 
 @layer base {
   :root {
-    /* Prometheus Coach Light Theme */
+    /* Prometheus Enterprise Light Theme */
     --background: 0 0% 98%;
     --background-secondary: 0 0% 95%;
     --foreground: 0 0% 10%;
@@ -16,7 +16,7 @@
     --glass-border: 0 0% 100% / 0.4;
     --glass-hover: 0 0% 100% / 0.45;
 
-    /* Prometheus Orange - Primary accent */
+    /* Prometheus Enterprise Orange - Primary accent */
     --primary: 23 87% 55%;
     --primary-glow: 23 87% 65%;
     --primary-foreground: 0 0% 100%;
@@ -75,7 +75,7 @@
   }
 
   .dark {
-    /* Prometheus Coach Dark Theme */
+    /* Prometheus Enterprise Dark Theme */
     --background: 0 0% 8%;
     --background-secondary: 0 0% 12%;
     --foreground: 0 0% 98%;

@@ -171,7 +171,7 @@ export function StripeConnectionCard({
                   <AlertDialogHeader>
                     <AlertDialogTitle>Disconnect Stripe Account?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      This will disconnect your Stripe account from Prometheus
+                      This will disconnect your Stripe account from Prometheus Enterprise
                       Enterprise. You will no longer be able to process payments
                       until you reconnect. Existing subscriptions will continue
                       to be managed in Stripe.

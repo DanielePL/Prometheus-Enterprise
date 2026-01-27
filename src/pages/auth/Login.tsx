@@ -42,13 +42,8 @@ export default function Login() {
       <div className="w-full max-w-md">
         <div className="glass-card p-8">
           {/* Logo */}
-          <div className="flex items-center justify-center gap-3 mb-8">
-            <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-primary to-orange-600 flex items-center justify-center shadow-lg">
-              <Flame className="h-7 w-7 text-white" />
-            </div>
-            <span className="font-bold text-2xl text-foreground font-display">
-              Prometheus Enterprise
-            </span>
+          <div className="flex items-center justify-center mb-8">
+            <img src="/logo-white.png" alt="Prometheus" className="h-10 object-contain" />
           </div>
 
           <h1 className="text-2xl font-bold text-center mb-2 font-display">

@@ -241,6 +241,91 @@ export const DEMO_MONTHLY_COMPARISON = {
   classAttendance: { current: 610, previous: 542, change: 12.5 },
 };
 
+// Member notes/reminders - for staff to see when member checks in
+export interface MemberNote {
+  id: string;
+  member_id: string;
+  note: string;
+  priority: 'low' | 'medium' | 'high';
+  category: 'health' | 'personal' | 'payment' | 'other';
+  created_at: string;
+  created_by: string;
+  is_active: boolean;
+}
+
+export const DEMO_MEMBER_NOTES: MemberNote[] = [
+  {
+    id: 'note-1',
+    member_id: 'm1',
+    note: 'Knee surgery on Jan 10 - ask how recovery is going. Avoid heavy leg exercises for 6 weeks.',
+    priority: 'high',
+    category: 'health',
+    created_at: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
+    created_by: 'Sofia Meier',
+    is_active: true,
+  },
+  {
+    id: 'note-2',
+    member_id: 'm2',
+    note: 'Birthday on February 3 - prepare small gift',
+    priority: 'low',
+    category: 'personal',
+    created_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+    created_by: 'Marco Bianchi',
+    is_active: true,
+  },
+  {
+    id: 'note-3',
+    member_id: 'm3',
+    note: 'Back pain issues - prefers modified exercises. Check if physiotherapy is helping.',
+    priority: 'high',
+    category: 'health',
+    created_at: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(),
+    created_by: 'Elena Weber',
+    is_active: true,
+  },
+  {
+    id: 'note-4',
+    member_id: 'm4',
+    note: 'Interested in personal training sessions - follow up on pricing',
+    priority: 'medium',
+    category: 'other',
+    created_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+    created_by: 'Marco Bianchi',
+    is_active: true,
+  },
+  {
+    id: 'note-5',
+    member_id: 'm6',
+    note: 'Shoulder injury from last month - avoid overhead exercises',
+    priority: 'high',
+    category: 'health',
+    created_at: new Date(Date.now() - 28 * 24 * 60 * 60 * 1000).toISOString(),
+    created_by: 'Luca Schneider',
+    is_active: true,
+  },
+  {
+    id: 'note-6',
+    member_id: 'm8',
+    note: 'VIP member - always greet by name, prefers morning slots',
+    priority: 'medium',
+    category: 'personal',
+    created_at: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString(),
+    created_by: 'Marco Bianchi',
+    is_active: true,
+  },
+  {
+    id: 'note-7',
+    member_id: 'm9',
+    note: 'Payment discussion pending - contact about outstanding balance',
+    priority: 'medium',
+    category: 'payment',
+    created_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+    created_by: 'Admin',
+    is_active: true,
+  },
+];
+
 // Check if we're in demo mode
 export function isDemoMode(): boolean {
   try {

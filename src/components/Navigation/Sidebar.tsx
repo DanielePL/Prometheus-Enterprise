@@ -45,14 +45,13 @@ const Sidebar = () => {
         onMouseLeave={() => setIsExpanded(false)}
       >
         {/* Logo */}
-        <div className="h-20 flex items-center justify-center">
-          <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-primary to-orange-600 flex items-center justify-center flex-shrink-0 shadow-lg">
-            <Flame className="h-6 w-6 text-white" />
-          </div>
-          {isExpanded && (
-            <span className="ml-3 font-bold text-lg text-foreground whitespace-nowrap font-display">
-              Prometheus
-            </span>
+        <div className="h-20 flex items-center justify-center overflow-hidden">
+          {isExpanded ? (
+            <img src="/logo-white.png" alt="Prometheus" className="h-8 object-contain" />
+          ) : (
+            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-primary to-orange-600 flex items-center justify-center flex-shrink-0 shadow-lg">
+              <Flame className="h-6 w-6 text-white" />
+            </div>
           )}
         </div>
 

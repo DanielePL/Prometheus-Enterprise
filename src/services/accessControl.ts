@@ -11,6 +11,7 @@ import {
   OpeningHours,
   Member,
 } from '@/types/database';
+import { isDemoMode, DEMO_ACCESS_LOGS, DEMO_ACCESS_STATS, DEMO_ACCESS_SETTINGS } from './demoData';
 
 // Default opening hours
 export const DEFAULT_OPENING_HOURS: OpeningHours = {
@@ -42,6 +43,10 @@ export const accessControlService = {
   // ==========================================
 
   async getSettings(gymId: string): Promise<GymAccessSettings | null> {
+    if (isDemoMode()) {
+      return DEMO_ACCESS_SETTINGS as unknown as GymAccessSettings;
+    }
+
     const { data, error } = await supabase
       .from('gym_access_settings')
       .select('*')
@@ -241,6 +246,15 @@ export const accessControlService = {
       status?: AccessStatus;
     }
   ): Promise<AccessLog[]> {
+    if (isDemoMode()) {
+      let logs = [...DEMO_ACCESS_LOGS] as unknown as AccessLog[];
+      if (options?.memberId) logs = logs.filter(l => l.member_id === options.memberId);
+      if (options?.method) logs = logs.filter(l => l.access_method === options.method);
+      if (options?.status) logs = logs.filter(l => l.access_status === options.status);
+      if (options?.limit) logs = logs.slice(0, options.limit);
+      return logs;
+    }
+
     let query = supabase
       .from('access_logs')
       .select('*')
@@ -295,6 +309,10 @@ export const accessControlService = {
     denied: number;
     byMethod: Record<AccessMethod, number>;
   }> {
+    if (isDemoMode()) {
+      return DEMO_ACCESS_STATS;
+    }
+
     const { data, error } = await supabase
       .from('access_logs')
       .select('access_method, access_status')

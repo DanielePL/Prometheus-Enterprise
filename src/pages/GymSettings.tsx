@@ -42,6 +42,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { StripeConnectionCard } from "@/components/stripe";
 import { stripe } from "@/services/stripeService";
 import AccessSettings from "@/components/access/AccessSettings";
+import BillingSettings from "@/components/settings/BillingSettings";
+import { useSubscription } from "@/contexts/SubscriptionContext";
+import { coachDeepLinks } from "@/config/coachIntegration";
 import { mockDataService } from "@/services/mockData";
 import { Database, Sparkles, Trash2 } from "lucide-react";
 
@@ -312,6 +315,7 @@ const GymSettings = () => {
       <Tabs defaultValue="profile" className="space-y-4">
         <TabsList className="glass flex-wrap">
           <TabsTrigger value="profile">Profile</TabsTrigger>
+          <TabsTrigger value="billing">Billing</TabsTrigger>
           <TabsTrigger value="facility">Facility Type</TabsTrigger>
           <TabsTrigger value="access">Access Control</TabsTrigger>
           <TabsTrigger value="users">Team</TabsTrigger>
@@ -439,6 +443,11 @@ const GymSettings = () => {
               </form>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Billing Tab */}
+        <TabsContent value="billing" className="space-y-4">
+          <BillingSettings />
         </TabsContent>
 
         {/* Facility Type Tab */}
@@ -746,6 +755,40 @@ const GymSettings = () => {
               onStatusChange={() => refetchStripeStatus()}
             />
           )}
+
+          {/* Prometheus Coach Integration */}
+          <Card className="glass-card">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Link className="h-5 w-5 text-primary" />
+                Prometheus Coach
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-primary/20">
+                    <Link className="h-6 w-6 text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-medium">Prometheus Coach App</p>
+                    <p className="text-sm text-muted-foreground">
+                      Link your coaches to their Prometheus Coach accounts for unified data
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={() => window.open(coachDeepLinks.dashboard(), '_blank')}
+                >
+                  Open Coach App
+                </Button>
+              </div>
+              <p className="text-sm text-muted-foreground mt-3">
+                Manage coach linking from the Coach Management page.
+              </p>
+            </CardContent>
+          </Card>
 
           {/* Other Integrations */}
           <Card className="glass-card">

@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import type { Member, InsertTables, UpdateTables } from '@/types/database';
-import { isDemoMode, DEMO_MEMBERS, DEMO_MEMBER_STATS } from './demoData';
+import { isDemoMode, DEMO_MEMBERS, DEMO_MEMBER_STATS, getDemoMemberVisits } from './demoData';
 
 export type MemberInsert = InsertTables<'members'>;
 export type MemberUpdate = UpdateTables<'members'>;
@@ -25,6 +25,12 @@ export const membersService = {
   },
 
   async getById(id: string) {
+    if (isDemoMode()) {
+      const member = DEMO_MEMBERS.find(m => m.id === id);
+      if (!member) throw new Error('Member not found');
+      return { ...member, payments: [], sessions: [] };
+    }
+
     const { data, error } = await supabase
       .from('members')
       .select(`
@@ -71,6 +77,11 @@ export const membersService = {
   },
 
   async search(gymId: string, query: string) {
+    if (isDemoMode()) {
+      const q = query.toLowerCase();
+      return DEMO_MEMBERS.filter(m => m.name.toLowerCase().includes(q) || m.email.toLowerCase().includes(q)).slice(0, 20);
+    }
+
     const { data, error } = await supabase
       .from('members')
       .select('*')
@@ -122,6 +133,10 @@ export const membersService = {
   },
 
   async getVisitHistory(memberId: string, limit = 30) {
+    if (isDemoMode()) {
+      return getDemoMemberVisits(memberId).slice(0, limit);
+    }
+
     const { data, error } = await supabase
       .from('member_visits')
       .select('*')

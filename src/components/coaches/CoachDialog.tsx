@@ -27,6 +27,7 @@ export interface CoachFormData {
   specializations: string[];
   bio: string;
   hourly_rate: number;
+  coach_app_email?: string;
 }
 
 const COMMON_SPECIALIZATIONS = [
@@ -59,6 +60,7 @@ export default function CoachDialog({
     specializations: [],
     bio: "",
     hourly_rate: 50,
+    coach_app_email: "",
   });
 
   const isEditing = !!coach;
@@ -72,6 +74,7 @@ export default function CoachDialog({
         specializations: coach.specializations || [],
         bio: coach.bio || "",
         hourly_rate: coach.hourly_rate,
+        coach_app_email: "",
       });
     } else {
       setFormData({
@@ -81,6 +84,7 @@ export default function CoachDialog({
         specializations: [],
         bio: "",
         hourly_rate: 50,
+        coach_app_email: "",
       });
     }
   }, [coach, open]);
@@ -161,6 +165,19 @@ export default function CoachDialog({
                   setFormData({ ...formData, phone: e.target.value })
                 }
                 placeholder="+1 555 ..."
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="coachAppEmail">Coach App Email</Label>
+              <Input
+                id="coachAppEmail"
+                type="email"
+                value={formData.coach_app_email || ""}
+                onChange={(e) =>
+                  setFormData({ ...formData, coach_app_email: e.target.value })
+                }
+                placeholder="Email in Prometheus Coach (optional)"
               />
             </div>
 

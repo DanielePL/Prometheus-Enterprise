@@ -4,6 +4,7 @@ import { Toaster } from "sonner";
 import Sidebar from "./components/Navigation/Sidebar";
 import BottomNav from "./components/Navigation/BottomNav";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
+import SubscriptionRoute from "./components/auth/SubscriptionRoute";
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
 import ForgotPassword from "./pages/auth/ForgotPassword";
@@ -17,6 +18,8 @@ import Inbox from "./pages/Inbox";
 import GymSettings from "./pages/GymSettings";
 import CheckInTerminal from "./pages/CheckInTerminal";
 import AccessLogs from "./pages/AccessLogs";
+import Pricing from "./pages/Pricing";
+import LocationAnalysis from "./pages/LocationAnalysis";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -54,15 +57,27 @@ function App() {
       <Route path="/auth/register" element={<Register />} />
       <Route path="/auth/forgot-password" element={<ForgotPassword />} />
 
-      {/* Protected Routes */}
+      {/* Pricing - accessible without subscription */}
+      <Route
+        path="/pricing"
+        element={
+          <ProtectedRoute>
+            <Pricing />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Protected Routes - require active subscription */}
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route
         path="/dashboard"
         element={
           <ProtectedRoute>
-            <AppLayout>
-              <GymDashboard />
-            </AppLayout>
+            <SubscriptionRoute>
+              <AppLayout>
+                <GymDashboard />
+              </AppLayout>
+            </SubscriptionRoute>
           </ProtectedRoute>
         }
       />
@@ -70,9 +85,11 @@ function App() {
         path="/coaches"
         element={
           <ProtectedRoute>
-            <AppLayout>
-              <CoachManagement />
-            </AppLayout>
+            <SubscriptionRoute>
+              <AppLayout>
+                <CoachManagement />
+              </AppLayout>
+            </SubscriptionRoute>
           </ProtectedRoute>
         }
       />
@@ -80,9 +97,11 @@ function App() {
         path="/members"
         element={
           <ProtectedRoute>
-            <AppLayout>
-              <MemberCRM />
-            </AppLayout>
+            <SubscriptionRoute>
+              <AppLayout>
+                <MemberCRM />
+              </AppLayout>
+            </SubscriptionRoute>
           </ProtectedRoute>
         }
       />
@@ -90,9 +109,11 @@ function App() {
         path="/calendar"
         element={
           <ProtectedRoute>
-            <AppLayout>
-              <Calendar />
-            </AppLayout>
+            <SubscriptionRoute>
+              <AppLayout>
+                <Calendar />
+              </AppLayout>
+            </SubscriptionRoute>
           </ProtectedRoute>
         }
       />
@@ -100,9 +121,11 @@ function App() {
         path="/financials"
         element={
           <ProtectedRoute>
-            <AppLayout>
-              <FinancialOverview />
-            </AppLayout>
+            <SubscriptionRoute>
+              <AppLayout>
+                <FinancialOverview />
+              </AppLayout>
+            </SubscriptionRoute>
           </ProtectedRoute>
         }
       />
@@ -110,9 +133,11 @@ function App() {
         path="/analytics"
         element={
           <ProtectedRoute>
-            <AppLayout>
-              <AnalyticsReports />
-            </AppLayout>
+            <SubscriptionRoute>
+              <AppLayout>
+                <AnalyticsReports />
+              </AppLayout>
+            </SubscriptionRoute>
           </ProtectedRoute>
         }
       />
@@ -120,9 +145,11 @@ function App() {
         path="/inbox"
         element={
           <ProtectedRoute>
-            <AppLayout>
-              <Inbox />
-            </AppLayout>
+            <SubscriptionRoute>
+              <AppLayout>
+                <Inbox />
+              </AppLayout>
+            </SubscriptionRoute>
           </ProtectedRoute>
         }
       />
@@ -130,9 +157,11 @@ function App() {
         path="/settings"
         element={
           <ProtectedRoute>
-            <AppLayout>
-              <GymSettings />
-            </AppLayout>
+            <SubscriptionRoute>
+              <AppLayout>
+                <GymSettings />
+              </AppLayout>
+            </SubscriptionRoute>
           </ProtectedRoute>
         }
       />
@@ -140,9 +169,23 @@ function App() {
         path="/access-logs"
         element={
           <ProtectedRoute>
-            <AppLayout>
-              <AccessLogs />
-            </AppLayout>
+            <SubscriptionRoute>
+              <AppLayout>
+                <AccessLogs />
+              </AppLayout>
+            </SubscriptionRoute>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/location-analysis"
+        element={
+          <ProtectedRoute>
+            <SubscriptionRoute>
+              <AppLayout>
+                <LocationAnalysis />
+              </AppLayout>
+            </SubscriptionRoute>
           </ProtectedRoute>
         }
       />

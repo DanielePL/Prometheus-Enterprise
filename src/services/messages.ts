@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import type { Message, InsertTables, UpdateTables } from '@/types/database';
+import { isDemoMode, DEMO_MESSAGES, DEMO_STAFF } from './demoData';
 
 export type MessageInsert = InsertTables<'messages'>;
 export type MessageUpdate = UpdateTables<'messages'>;
@@ -7,6 +8,10 @@ export type MessageUpdate = UpdateTables<'messages'>;
 export const messagesService = {
   // Get all messages for a gym (inbox)
   async getInbox(gymId: string, userId: string) {
+    if (isDemoMode()) {
+      return DEMO_MESSAGES.filter(m => m.recipient_id === 'staff-1' || m.is_broadcast);
+    }
+
     const { data, error } = await supabase
       .from('messages')
       .select(`
@@ -23,6 +28,10 @@ export const messagesService = {
 
   // Get sent messages
   async getSent(gymId: string, userId: string) {
+    if (isDemoMode()) {
+      return DEMO_MESSAGES.filter(m => m.sender_id === 'staff-1');
+    }
+
     const { data, error } = await supabase
       .from('messages')
       .select(`
@@ -122,6 +131,10 @@ export const messagesService = {
 
   // Get unread count
   async getUnreadCount(gymId: string, userId: string) {
+    if (isDemoMode()) {
+      return DEMO_MESSAGES.filter(m => !m.is_read && (m.recipient_id === 'staff-1' || m.is_broadcast)).length;
+    }
+
     const { count, error } = await supabase
       .from('messages')
       .select('*', { count: 'exact', head: true })
@@ -135,6 +148,10 @@ export const messagesService = {
 
   // Get staff members for recipient selection
   async getStaffMembers(gymId: string) {
+    if (isDemoMode()) {
+      return DEMO_STAFF;
+    }
+
     const { data, error } = await supabase
       .from('profiles')
       .select('id, full_name, avatar_url, email, role')

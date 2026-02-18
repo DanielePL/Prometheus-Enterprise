@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase';
-import { isDemoMode } from './demoData';
+import { isDemoMode, DEMO_ALERTS } from './demoData';
 
 export type AlertSeverity = 'info' | 'warning' | 'critical';
 export type AlertType =
@@ -37,6 +37,10 @@ export interface CreateAlertParams {
 
 export const alertsService = {
   async getAll(gymId: string) {
+    if (isDemoMode()) {
+      return DEMO_ALERTS as Alert[];
+    }
+
     const { data, error } = await supabase
       .from('alerts')
       .select('*')
@@ -48,6 +52,10 @@ export const alertsService = {
   },
 
   async getUnread(gymId: string, limit = 10) {
+    if (isDemoMode()) {
+      return DEMO_ALERTS.filter(a => !a.is_read).slice(0, limit) as Alert[];
+    }
+
     const { data, error } = await supabase
       .from('alerts')
       .select('*')
@@ -61,6 +69,10 @@ export const alertsService = {
   },
 
   async getUnreadCount(gymId: string) {
+    if (isDemoMode()) {
+      return DEMO_ALERTS.filter(a => !a.is_read).length;
+    }
+
     const { count, error } = await supabase
       .from('alerts')
       .select('*', { count: 'exact', head: true })

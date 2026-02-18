@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase';
-import { isDemoMode, DEMO_OVERVIEW, DEMO_GROWTH, DEMO_OCCUPANCY_DATA } from './demoData';
+import { isDemoMode, DEMO_OVERVIEW, DEMO_GROWTH, DEMO_OCCUPANCY_DATA, DEMO_RECENT_ACTIVITY } from './demoData';
 
 export const dashboardService = {
   async getOverview(gymId: string) {
@@ -87,6 +87,10 @@ export const dashboardService = {
   },
 
   async getRecentActivity(gymId: string, limit = 10) {
+    if (isDemoMode()) {
+      return DEMO_RECENT_ACTIVITY.slice(0, limit);
+    }
+
     const { data, error } = await supabase
       .from('member_visits')
       .select(`

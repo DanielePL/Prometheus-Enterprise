@@ -3,6 +3,7 @@ import { User, Session, AuthError } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import type { Profile, Gym, StaffRole } from '@/types/database';
 import { setDemoMode as persistDemoMode } from '@/services/demoData';
+import { platformBilling } from '@/services/platformBillingService';
 
 interface AuthContextType {
   user: User | null;
@@ -190,6 +191,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
           if (profileError) {
             console.error('Error creating profile:', profileError);
+          }
+
+          // Auto-start trial for new gym
+          try {
+            await platformBilling.startTrial(gymData.id, data.user.id);
+          } catch (trialError) {
+            console.error('Error starting trial:', trialError);
           }
         }
       } else {

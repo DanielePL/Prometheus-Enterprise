@@ -26,9 +26,12 @@ import { sessionsService } from "@/services/sessions";
 import { alertsService } from "@/services/alerts";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
+import { useSubscription } from "@/contexts/SubscriptionContext";
+import CoachingOverview from "@/components/dashboard/CoachingOverview";
 
 const GymDashboard = () => {
   const { gym } = useAuth();
+  const { hasFeature } = useSubscription();
   const navigate = useNavigate();
 
   // Fetch dashboard overview
@@ -321,6 +324,9 @@ const GymDashboard = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Coaching Overview - Feature-gated */}
+      {hasFeature('coachIntegration') && <CoachingOverview />}
 
       {/* Quick Actions */}
       <Card className="glass-card">

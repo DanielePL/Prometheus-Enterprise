@@ -27,20 +27,34 @@ import {
   Trash2,
   ToggleLeft,
   ToggleRight,
+  Link2,
+  Send,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { coachesService } from "@/services/coaches";
+import { coachIntegrationService } from "@/services/coachIntegration";
 import CoachDialog, { CoachFormData } from "@/components/coaches/CoachDialog";
 import DeleteCoachDialog from "@/components/coaches/DeleteCoachDialog";
-import type { Coach } from "@/types/database";
+import CoachLinkDialog from "@/components/coaches/CoachLinkDialog";
+import CoachIntegrationCard from "@/components/coaches/CoachIntegrationCard";
+import CoachDataPanel from "@/components/coaches/CoachDataPanel";
+import CoachInviteDialog from "@/components/coaches/CoachInviteDialog";
+import { useSubscription } from "@/contexts/SubscriptionContext";
+import type { Coach, CoachIntegrationRow } from "@/types/database";
 
 const CoachManagement = () => {
   const { gym } = useAuth();
+  const { hasFeature, staffLimit } = useSubscription();
   const queryClient = useQueryClient();
   const [coachDialogOpen, setCoachDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedCoach, setSelectedCoach] = useState<Coach | null>(null);
+  const [linkDialogOpen, setLinkDialogOpen] = useState(false);
+  const [linkingCoach, setLinkingCoach] = useState<Coach | null>(null);
+  const [expandedCoach, setExpandedCoach] = useState<string | null>(null);
+  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+  const [invitingCoach, setInvitingCoach] = useState<Coach | null>(null);
 
   // Fetch coaches
   const { data: coaches = [], isLoading } = useQuery({
@@ -48,6 +62,47 @@ const CoachManagement = () => {
     queryFn: () => (gym?.id ? coachesService.getAll(gym.id) : Promise.resolve([])),
     enabled: !!gym?.id,
   });
+
+  // Fetch coach integrations
+  const { data: integrations = [] } = useQuery({
+    queryKey: ["coach-integrations", gym?.id],
+    queryFn: () => (gym?.id ? coachIntegrationService.getIntegrations(gym.id) : Promise.resolve([])),
+    enabled: !!gym?.id && hasFeature('coachIntegration'),
+  });
+
+  const getIntegration = (coachId: string): CoachIntegrationRow | null => {
+    return integrations.find((i: CoachIntegrationRow) => i.coach_id === coachId) || null;
+  };
+
+  const handleLinkCoach = (coach: Coach) => {
+    setLinkingCoach(coach);
+    setLinkDialogOpen(true);
+  };
+
+  const handleLinkSubmit = async (email: string) => {
+    if (!gym?.id || !linkingCoach) return { success: false };
+    try {
+      const result = await coachIntegrationService.initiateLink(gym.id, linkingCoach.id, email);
+      queryClient.invalidateQueries({ queryKey: ["coach-integrations"] });
+      if (result.status === 'linked') {
+        toast.success("Coach linked successfully");
+        return { success: true };
+      }
+      return { success: false, message: "No account found with this email in Prometheus Coach" };
+    } catch (error) {
+      return { success: false, message: "Failed to link coach" };
+    }
+  };
+
+  const handleUnlinkCoach = async (integrationId: string) => {
+    try {
+      await coachIntegrationService.unlinkCoach(integrationId);
+      queryClient.invalidateQueries({ queryKey: ["coach-integrations"] });
+      toast.success("Coach unlinked");
+    } catch (error) {
+      toast.error("Failed to unlink coach");
+    }
+  };
 
   // Create coach mutation
   const createMutation = useMutation({
@@ -189,10 +244,27 @@ const CoachManagement = () => {
             Manage your coaching team and track performance
           </p>
         </div>
-        <Button className="bg-primary hover:bg-primary/90" onClick={handleAddCoach}>
-          <UserPlus className="h-4 w-4 mr-2" />
-          Add Coach
-        </Button>
+        <div className="flex items-center gap-3">
+          {staffLimit > 0 && (
+            <span className="text-sm text-muted-foreground">
+              {coaches.length} / {staffLimit} coaches
+            </span>
+          )}
+          <Button
+            className="bg-primary hover:bg-primary/90"
+            onClick={() => {
+              if (staffLimit > 0 && coaches.length >= staffLimit) {
+                toast.error(`Staff limit reached (${staffLimit}). Upgrade your plan for more.`);
+                return;
+              }
+              handleAddCoach();
+            }}
+            disabled={staffLimit > 0 && coaches.length >= staffLimit}
+          >
+            <UserPlus className="h-4 w-4 mr-2" />
+            Add Coach
+          </Button>
+        </div>
       </div>
 
       {/* Stats Overview */}
@@ -299,6 +371,12 @@ const CoachManagement = () => {
                             >
                               {coach.is_active ? "Active" : "Inactive"}
                             </Badge>
+                            {hasFeature('coachIntegration') && getIntegration(coach.id)?.status === 'linked' && (
+                              <Badge variant="outline" className="text-xs border-primary text-primary">
+                                <Link2 className="h-3 w-3 mr-1" />
+                                Linked
+                              </Badge>
+                            )}
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" size="icon">
@@ -310,6 +388,18 @@ const CoachManagement = () => {
                                   <Pencil className="h-4 w-4 mr-2" />
                                   Edit
                                 </DropdownMenuItem>
+                                {hasFeature('coachIntegration') && (
+                                  <>
+                                    <DropdownMenuItem onClick={() => handleLinkCoach(coach)}>
+                                      <Link2 className="h-4 w-4 mr-2" />
+                                      {getIntegration(coach.id)?.status === 'linked' ? 'Manage Link' : 'Link to Coach App'}
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => { setInvitingCoach(coach); setInviteDialogOpen(true); }}>
+                                      <Send className="h-4 w-4 mr-2" />
+                                      Send Invite Link
+                                    </DropdownMenuItem>
+                                  </>
+                                )}
                                 <DropdownMenuItem onClick={() => handleToggleActive(coach)}>
                                   {coach.is_active ? (
                                     <>
@@ -484,6 +574,29 @@ const CoachManagement = () => {
         coach={selectedCoach}
         onConfirm={handleConfirmDelete}
       />
+
+      {/* Coach Link Dialog */}
+      {linkingCoach && (
+        <CoachLinkDialog
+          open={linkDialogOpen}
+          onOpenChange={setLinkDialogOpen}
+          coachName={linkingCoach.name}
+          coachEmail={linkingCoach.email}
+          onLink={handleLinkSubmit}
+        />
+      )}
+
+      {/* Coach Invite Dialog */}
+      {invitingCoach && (
+        <CoachInviteDialog
+          open={inviteDialogOpen}
+          onOpenChange={setInviteDialogOpen}
+          coach={invitingCoach}
+          gymId={gym?.id || ''}
+          gymName={gym?.name || 'Prometheus Fitness'}
+          userId="staff-1"
+        />
+      )}
     </div>
   );
 };

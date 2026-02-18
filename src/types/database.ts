@@ -14,6 +14,16 @@ export type StaffRole = 'owner' | 'admin' | 'manager' | 'coach' | 'receptionist'
 export type StripeAccountStatus = 'disconnected' | 'pending' | 'connected' | 'restricted';
 export type StripeSubscriptionStatus = 'incomplete' | 'incomplete_expired' | 'trialing' | 'active' | 'past_due' | 'canceled' | 'unpaid' | 'paused';
 
+// Platform subscription types (SaaS billing for studios)
+export type PlatformSubscriptionStatus = 'none' | 'trialing' | 'active' | 'past_due' | 'canceled' | 'unpaid';
+export type PlatformPlanId = 'trial' | 'basic' | 'premium' | 'vip';
+
+// Coach integration types
+export type CoachIntegrationStatus = 'pending' | 'linked' | 'unlinked' | 'error';
+export type CoachInvitationStatus = 'pending' | 'accepted' | 'expired' | 'revoked';
+export type CompetitorPricingTier = 'budget' | 'mid' | 'premium' | 'luxury';
+export type ExpansionScenarioStatus = 'draft' | 'evaluating' | 'approved' | 'rejected';
+
 // Access Control types
 export type AccessMethod = 'bluetooth' | 'face_recognition' | 'manual' | 'qr_code';
 export type AccessStatus = 'granted' | 'denied' | 'pending';
@@ -78,6 +88,9 @@ export interface Database {
           stripe_account_id: string | null;
           stripe_connected_at: string | null;
           stripe_account_status: StripeAccountStatus;
+          postal_code: string | null;
+          city: string | null;
+          area_sqm: number | null;
           created_at: string;
           updated_at: string;
         };
@@ -95,6 +108,9 @@ export interface Database {
           stripe_account_id?: string | null;
           stripe_connected_at?: string | null;
           stripe_account_status?: StripeAccountStatus;
+          postal_code?: string | null;
+          city?: string | null;
+          area_sqm?: number | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -112,6 +128,9 @@ export interface Database {
           stripe_account_id?: string | null;
           stripe_connected_at?: string | null;
           stripe_account_status?: StripeAccountStatus;
+          postal_code?: string | null;
+          city?: string | null;
+          area_sqm?: number | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -254,6 +273,9 @@ export interface Database {
           total_visits: number;
           notes: string | null;
           stripe_customer_id: string | null;
+          postal_code: string | null;
+          city: string | null;
+          address: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -274,6 +296,9 @@ export interface Database {
           total_visits?: number;
           notes?: string | null;
           stripe_customer_id?: string | null;
+          postal_code?: string | null;
+          city?: string | null;
+          address?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -294,6 +319,9 @@ export interface Database {
           total_visits?: number;
           notes?: string | null;
           stripe_customer_id?: string | null;
+          postal_code?: string | null;
+          city?: string | null;
+          address?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -737,6 +765,97 @@ export interface Database {
           visit_id?: string | null;
         };
       };
+      platform_subscriptions: {
+        Row: {
+          id: string;
+          gym_id: string;
+          owner_id: string;
+          stripe_customer_id: string | null;
+          stripe_subscription_id: string | null;
+          plan_id: PlatformPlanId;
+          status: PlatformSubscriptionStatus;
+          current_period_start: string | null;
+          current_period_end: string | null;
+          cancel_at_period_end: boolean;
+          trial_start: string | null;
+          trial_end: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          gym_id: string;
+          owner_id: string;
+          stripe_customer_id?: string | null;
+          stripe_subscription_id?: string | null;
+          plan_id?: PlatformPlanId;
+          status?: PlatformSubscriptionStatus;
+          current_period_start?: string | null;
+          current_period_end?: string | null;
+          cancel_at_period_end?: boolean;
+          trial_start?: string | null;
+          trial_end?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          gym_id?: string;
+          owner_id?: string;
+          stripe_customer_id?: string | null;
+          stripe_subscription_id?: string | null;
+          plan_id?: PlatformPlanId;
+          status?: PlatformSubscriptionStatus;
+          current_period_start?: string | null;
+          current_period_end?: string | null;
+          cancel_at_period_end?: boolean;
+          trial_start?: string | null;
+          trial_end?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      coach_integrations: {
+        Row: {
+          id: string;
+          gym_id: string;
+          coach_id: string;
+          coach_app_user_id: string | null;
+          coach_app_email: string;
+          status: CoachIntegrationStatus;
+          linked_at: string | null;
+          last_sync_at: string | null;
+          cached_data: Json;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          gym_id: string;
+          coach_id: string;
+          coach_app_user_id?: string | null;
+          coach_app_email: string;
+          status?: CoachIntegrationStatus;
+          linked_at?: string | null;
+          last_sync_at?: string | null;
+          cached_data?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          gym_id?: string;
+          coach_id?: string;
+          coach_app_user_id?: string | null;
+          coach_app_email?: string;
+          status?: CoachIntegrationStatus;
+          linked_at?: string | null;
+          last_sync_at?: string | null;
+          cached_data?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
       gym_access_settings: {
         Row: {
           id: string;
@@ -802,6 +921,168 @@ export interface Database {
           updated_at?: string;
         };
       };
+      coach_invitations: {
+        Row: {
+          id: string;
+          gym_id: string;
+          coach_id: string;
+          token: string;
+          coach_name: string;
+          coach_email: string;
+          gym_name: string;
+          status: CoachInvitationStatus;
+          expires_at: string;
+          accepted_at: string | null;
+          created_by: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          gym_id: string;
+          coach_id: string;
+          token: string;
+          coach_name: string;
+          coach_email: string;
+          gym_name: string;
+          status?: CoachInvitationStatus;
+          expires_at: string;
+          accepted_at?: string | null;
+          created_by: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          gym_id?: string;
+          coach_id?: string;
+          token?: string;
+          coach_name?: string;
+          coach_email?: string;
+          gym_name?: string;
+          status?: CoachInvitationStatus;
+          expires_at?: string;
+          accepted_at?: string | null;
+          created_by?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      competitors: {
+        Row: {
+          id: string;
+          gym_id: string;
+          name: string;
+          address: string | null;
+          postal_code: string | null;
+          city: string | null;
+          lat: number | null;
+          lng: number | null;
+          pricing_tier: CompetitorPricingTier | null;
+          monthly_price: number | null;
+          estimated_members: number | null;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          gym_id: string;
+          name: string;
+          address?: string | null;
+          postal_code?: string | null;
+          city?: string | null;
+          lat?: number | null;
+          lng?: number | null;
+          pricing_tier?: CompetitorPricingTier | null;
+          monthly_price?: number | null;
+          estimated_members?: number | null;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          gym_id?: string;
+          name?: string;
+          address?: string | null;
+          postal_code?: string | null;
+          city?: string | null;
+          lat?: number | null;
+          lng?: number | null;
+          pricing_tier?: CompetitorPricingTier | null;
+          monthly_price?: number | null;
+          estimated_members?: number | null;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      expansion_scenarios: {
+        Row: {
+          id: string;
+          gym_id: string;
+          name: string;
+          address: string | null;
+          postal_code: string | null;
+          city: string | null;
+          lat: number | null;
+          lng: number | null;
+          investment: number | null;
+          monthly_rent: number | null;
+          area_sqm: number | null;
+          estimated_members: number | null;
+          estimated_monthly_revenue: number | null;
+          roi_months: number | null;
+          cannibalization_pct: number;
+          notes: string | null;
+          status: ExpansionScenarioStatus;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          gym_id: string;
+          name: string;
+          address?: string | null;
+          postal_code?: string | null;
+          city?: string | null;
+          lat?: number | null;
+          lng?: number | null;
+          investment?: number | null;
+          monthly_rent?: number | null;
+          area_sqm?: number | null;
+          estimated_members?: number | null;
+          estimated_monthly_revenue?: number | null;
+          roi_months?: number | null;
+          cannibalization_pct?: number;
+          notes?: string | null;
+          status?: ExpansionScenarioStatus;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          gym_id?: string;
+          name?: string;
+          address?: string | null;
+          postal_code?: string | null;
+          city?: string | null;
+          lat?: number | null;
+          lng?: number | null;
+          investment?: number | null;
+          monthly_rent?: number | null;
+          area_sqm?: number | null;
+          estimated_members?: number | null;
+          estimated_monthly_revenue?: number | null;
+          roi_months?: number | null;
+          cannibalization_pct?: number;
+          notes?: string | null;
+          status?: ExpansionScenarioStatus;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
     };
     Views: {
       [_ in never]: never;
@@ -844,3 +1125,16 @@ export type MemberFaceData = Tables<'member_face_data'>;
 export type MemberBluetoothDevice = Tables<'member_bluetooth_devices'>;
 export type AccessLog = Tables<'access_logs'>;
 export type GymAccessSettings = Tables<'gym_access_settings'>;
+
+// Platform Subscription exports
+export type PlatformSubscription = Tables<'platform_subscriptions'>;
+
+// Coach Integration exports
+export type CoachIntegrationRow = Tables<'coach_integrations'>;
+
+// Coach Invitation exports
+export type CoachInvitationRow = Tables<'coach_invitations'>;
+
+// Location Analysis exports
+export type Competitor = Tables<'competitors'>;
+export type ExpansionScenario = Tables<'expansion_scenarios'>;

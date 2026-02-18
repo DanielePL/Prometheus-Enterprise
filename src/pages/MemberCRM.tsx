@@ -59,6 +59,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSubscription } from "@/contexts/SubscriptionContext";
 import { membersService } from "@/services/members";
 import { coachesService } from "@/services/coaches";
 import { memberNotesService } from "@/services/memberNotes";
@@ -70,6 +71,7 @@ import { format } from "date-fns";
 
 const MemberCRM = () => {
   const { gym, profile } = useAuth();
+  const { memberLimit } = useSubscription();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -373,10 +375,27 @@ const MemberCRM = () => {
             Manage members and track engagement
           </p>
         </div>
-        <Button className="bg-primary hover:bg-primary/90" onClick={handleAddMember}>
-          <UserPlus className="h-4 w-4 mr-2" />
-          Add Member
-        </Button>
+        <div className="flex items-center gap-3">
+          {memberLimit > 0 && (
+            <span className="text-sm text-muted-foreground">
+              {members.length} / {memberLimit} members
+            </span>
+          )}
+          <Button
+            className="bg-primary hover:bg-primary/90"
+            onClick={() => {
+              if (memberLimit > 0 && members.length >= memberLimit) {
+                toast.error(`Member limit reached (${memberLimit}). Upgrade your plan for more.`);
+                return;
+              }
+              handleAddMember();
+            }}
+            disabled={memberLimit > 0 && members.length >= memberLimit}
+          >
+            <UserPlus className="h-4 w-4 mr-2" />
+            Add Member
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}

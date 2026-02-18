@@ -20,6 +20,7 @@ import {
   Area,
 } from "recharts";
 import { useAuth } from "@/contexts/AuthContext";
+import FeatureGate from "@/components/auth/FeatureGate";
 import { dashboardService } from "@/services/dashboard";
 import { paymentsService } from "@/services/payments";
 import { membersService } from "@/services/members";
@@ -244,6 +245,7 @@ const AnalyticsReports = () => {
   }
 
   return (
+    <FeatureGate feature="analytics">
     <div className="space-y-6 p-6">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -1017,6 +1019,7 @@ const AnalyticsReports = () => {
         </TabsContent>
       </Tabs>
     </div>
+    </FeatureGate>
   );
 };
 

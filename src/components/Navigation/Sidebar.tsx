@@ -11,6 +11,7 @@ import {
   Settings,
   Flame,
   Shield,
+  MapPin,
 } from "lucide-react";
 import {
   Tooltip,
@@ -27,6 +28,7 @@ const navItems = [
   { to: "/access-logs", icon: Shield, label: "Access" },
   { to: "/financials", icon: DollarSign, label: "Financials" },
   { to: "/analytics", icon: BarChart3, label: "Analytics" },
+  { to: "/location-analysis", icon: MapPin, label: "Location" },
   { to: "/calendar", icon: Calendar, label: "Calendar" },
   { to: "/inbox", icon: MessageSquare, label: "Inbox" },
   { to: "/settings", icon: Settings, label: "Settings" },

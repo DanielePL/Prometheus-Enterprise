@@ -1,12 +1,19 @@
 import { supabase } from '@/lib/supabase';
 import type { Session, InsertTables, UpdateTables } from '@/types/database';
-import { isDemoMode, DEMO_SESSIONS } from './demoData';
+import { isDemoMode, DEMO_SESSIONS, getDemoSessionsForDateRange } from './demoData';
 
 export type SessionInsert = InsertTables<'sessions'>;
 export type SessionUpdate = UpdateTables<'sessions'>;
 
 export const sessionsService = {
   async getAll(gymId: string) {
+    if (isDemoMode()) {
+      return getDemoSessionsForDateRange(
+        new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+        new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+      );
+    }
+
     const { data, error } = await supabase
       .from('sessions')
       .select(`
@@ -22,6 +29,10 @@ export const sessionsService = {
   },
 
   async getByDateRange(gymId: string, startDate: Date, endDate: Date) {
+    if (isDemoMode()) {
+      return getDemoSessionsForDateRange(startDate, endDate);
+    }
+
     const { data, error } = await supabase
       .from('sessions')
       .select(`

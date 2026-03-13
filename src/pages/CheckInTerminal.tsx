@@ -22,17 +22,22 @@ import {
   CreditCard,
   Users,
   MessageSquare,
+  QrCode,
+  Eye,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { accessControlService } from '@/services/accessControl';
 import { faceRecognitionService } from '@/services/faceRecognition';
-import { deviceCheckinService } from '@/services/bluetoothCheckin';
+import { livenessCheckService } from '@/services/livenessCheck';
+import { deviceCheckinService, bluetoothCheckinService, isWithinRange } from '@/services/bluetoothCheckin';
+import { validateToken } from '@/services/qrCheckin';
 import { membersService } from '@/services/members';
 import { memberNotesService } from '@/services/memberNotes';
+import { isDemoMode, DEMO_MEMBERS } from '@/services/demoData';
 import { MemberNote } from '@/services/demoData';
 import { Member, MemberFaceData, GymAccessSettings } from '@/types/database';
 
-type CheckInMode = 'idle' | 'face' | 'search' | 'device';
+type CheckInMode = 'idle' | 'face' | 'search' | 'device' | 'qr';
 type CheckInStatus = 'success' | 'denied' | 'processing' | null;
 
 interface CheckInResult {
@@ -58,6 +63,8 @@ export default function CheckInTerminal() {
   const [settings, setSettings] = useState<GymAccessSettings | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [showSettings, setShowSettings] = useState(false);
+  const [livenessStatus, setLivenessStatus] = useState<string | null>(null);
+  const qrScannerRef = useRef<any>(null);
 
   // Update clock every second
   useEffect(() => {
@@ -130,6 +137,7 @@ export default function CheckInTerminal() {
     if (!gym?.id || !videoRef.current || !modelsLoaded) return;
 
     setIsProcessing(true);
+    setLivenessStatus(null);
     setResult({ status: 'processing', message: 'Scanning face...' });
 
     try {
@@ -140,6 +148,48 @@ export default function CheckInTerminal() {
       );
 
       if (matchResult.matched && matchResult.memberId) {
+        // Liveness check if enabled
+        if (settings?.require_liveness_check) {
+          setResult({ status: 'processing', message: 'Liveness check...' });
+
+          if (isDemoMode()) {
+            // Demo: auto-pass after 1.5s
+            setLivenessStatus('Please blink...');
+            await new Promise((r) => setTimeout(r, 1500));
+            setLivenessStatus('Blink detected!');
+          } else {
+            let attempts = 0;
+            const maxAttempts = 3;
+            let passed = false;
+
+            while (attempts < maxAttempts && !passed) {
+              attempts++;
+              const livenessResult = await livenessCheckService.performLivenessCheck(
+                videoRef.current!,
+                'blink',
+                (status) => setLivenessStatus(status)
+              );
+              passed = livenessResult.passed;
+
+              if (!passed && attempts < maxAttempts) {
+                setLivenessStatus(`Attempt ${attempts}/${maxAttempts} failed. Trying again...`);
+                await new Promise((r) => setTimeout(r, 500));
+              }
+            }
+
+            if (!passed) {
+              setLivenessStatus(null);
+              setResult({
+                status: 'denied',
+                message: 'Liveness check failed. Please try again.',
+              });
+              setIsProcessing(false);
+              return;
+            }
+          }
+          setLivenessStatus(null);
+        }
+
         const checkInResult = await accessControlService.performCheckIn(
           gym.id,
           matchResult.memberId,
@@ -176,8 +226,9 @@ export default function CheckInTerminal() {
       });
     } finally {
       setIsProcessing(false);
+      setLivenessStatus(null);
     }
-  }, [gym?.id, modelsLoaded, faceDataCache, settings?.face_match_threshold]);
+  }, [gym?.id, modelsLoaded, faceDataCache, settings?.face_match_threshold, settings?.require_liveness_check]);
 
   // Continuous face detection loop
   useEffect(() => {
@@ -258,6 +309,114 @@ export default function CheckInTerminal() {
     }
   };
 
+  // Handle QR check-in
+  const handleQrCheckIn = useCallback(async (decodedText: string) => {
+    if (!gym?.id || isProcessing) return;
+
+    setIsProcessing(true);
+    setResult({ status: 'processing', message: 'Validating QR code...' });
+
+    try {
+      const tokenResult = validateToken(decodedText, gym.id);
+
+      if (!tokenResult.valid || !tokenResult.data) {
+        setResult({
+          status: 'denied',
+          message: tokenResult.error || 'Invalid QR code',
+        });
+        setIsProcessing(false);
+        return;
+      }
+
+      const checkInResult = await accessControlService.performCheckIn(
+        gym.id,
+        tokenResult.data.memberId,
+        'qr_code'
+      );
+
+      if (checkInResult.success) {
+        const notes = await memberNotesService.getByMember(tokenResult.data.memberId);
+        setResult({
+          status: 'success',
+          member: checkInResult.member,
+          message: `Welcome, ${checkInResult.member?.name}!`,
+          notes: notes.length > 0 ? notes : undefined,
+        });
+      } else {
+        setResult({
+          status: 'denied',
+          message: checkInResult.message,
+        });
+      }
+    } catch (error) {
+      console.error('QR check-in error:', error);
+      setResult({
+        status: 'denied',
+        message: 'QR check-in failed. Please try again.',
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  }, [gym?.id, isProcessing]);
+
+  // Start/stop QR scanner
+  useEffect(() => {
+    if (mode !== 'qr') {
+      // Cleanup scanner when leaving QR mode
+      if (qrScannerRef.current) {
+        qrScannerRef.current.clear().catch(() => {});
+        qrScannerRef.current = null;
+      }
+      return;
+    }
+
+    // Demo mode: simulate a scan after delay
+    if (isDemoMode()) {
+      const timer = setTimeout(() => {
+        const randomMember = DEMO_MEMBERS[Math.floor(Math.random() * 10)];
+        setResult({
+          status: 'success',
+          member: randomMember as unknown as Member,
+          message: `Welcome, ${randomMember.name}!`,
+        });
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+
+    // Initialize scanner
+    const initScanner = async () => {
+      try {
+        const { Html5QrcodeScanner } = await import('html5-qrcode');
+        const scanner = new Html5QrcodeScanner(
+          'qr-reader',
+          { fps: 10, qrbox: { width: 250, height: 250 } },
+          false
+        );
+        qrScannerRef.current = scanner;
+
+        scanner.render(
+          (decodedText: string) => {
+            handleQrCheckIn(decodedText);
+            scanner.clear().catch(() => {});
+          },
+          () => {} // ignore errors during scanning
+        );
+      } catch (error) {
+        console.error('Failed to initialize QR scanner:', error);
+        toast.error('Failed to start QR scanner');
+      }
+    };
+
+    initScanner();
+
+    return () => {
+      if (qrScannerRef.current) {
+        qrScannerRef.current.clear().catch(() => {});
+        qrScannerRef.current = null;
+      }
+    };
+  }, [mode, handleQrCheckIn]);
+
   // Handle device check-in
   const handleDeviceCheckIn = async () => {
     if (!gym?.id) return;
@@ -275,6 +434,21 @@ export default function CheckInTerminal() {
       );
 
       if (device) {
+        // Check Bluetooth range if configured
+        const rangeLimit = settings?.bluetooth_range_meters || 0;
+        if (rangeLimit > 0) {
+          // In demo mode, simulate RSSI in valid range
+          const rssi = isDemoMode() ? -55 : (device as any).rssi;
+          if (!isWithinRange(rssi, rangeLimit)) {
+            setResult({
+              status: 'denied',
+              message: 'Device is out of range. Please move closer.',
+            });
+            setIsProcessing(false);
+            return;
+          }
+        }
+
         const checkInResult = await accessControlService.performCheckIn(
           gym.id,
           device.member_id,
@@ -477,6 +651,24 @@ export default function CheckInTerminal() {
               </Card>
             )}
 
+            {settings?.qr_code_enabled && (
+              <Card
+                className="glass-card cursor-pointer hover:scale-105 transition-transform"
+                onClick={() => {
+                  stopCamera();
+                  setMode('qr');
+                }}
+              >
+                <CardContent className="p-8 text-center">
+                  <QrCode className="h-20 w-20 mx-auto mb-4 text-primary" />
+                  <h3 className="text-2xl font-bold mb-2">QR Check-In</h3>
+                  <p className="text-muted-foreground">
+                    Scan your QR code
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+
             {settings?.manual_checkin_enabled !== false && (
               <Card
                 className="glass-card cursor-pointer hover:scale-105 transition-transform"
@@ -522,12 +714,36 @@ export default function CheckInTerminal() {
                   <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between">
                     <Badge variant="secondary" className="text-sm">
                       <Camera className="h-4 w-4 mr-2" />
-                      {isProcessing ? 'Scanning...' : 'Position your face in the frame'}
+                      {livenessStatus ? livenessStatus :
+                       isProcessing ? 'Scanning...' : 'Position your face in the frame'}
                     </Badge>
                     <Button variant="secondary" onClick={resetToIdle}>
                       Cancel
                     </Button>
                   </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* QR Scanner Mode */}
+        {mode === 'qr' && !result && (
+          <div className="max-w-2xl w-full">
+            <Card className="glass-card">
+              <CardContent className="p-6">
+                <div className="text-center mb-4">
+                  <QrCode className="h-12 w-12 mx-auto mb-2 text-primary" />
+                  <h3 className="text-xl font-bold">Scan QR Code</h3>
+                  <p className="text-muted-foreground">
+                    Hold your QR code in front of the camera
+                  </p>
+                </div>
+                <div id="qr-reader" className="rounded-lg overflow-hidden" />
+                <div className="mt-4 flex justify-center">
+                  <Button variant="outline" onClick={resetToIdle}>
+                    Cancel
+                  </Button>
                 </div>
               </CardContent>
             </Card>

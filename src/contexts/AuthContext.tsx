@@ -75,6 +75,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
+        if (session.user.email?.endsWith('@prometheus.coach')) {
+          setIsDemoMode(true);
+          persistDemoMode(true);
+        }
         fetchProfile(session.user.id);
       } else {
         setLoading(false);
@@ -91,6 +95,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(session);
         setUser(session?.user ?? null);
         if (session?.user) {
+          // Internal team accounts auto-enable demo mode
+          if (session.user.email?.endsWith('@prometheus.coach')) {
+            setIsDemoMode(true);
+            persistDemoMode(true);
+          }
           await fetchProfile(session.user.id);
         } else {
           setProfile(null);

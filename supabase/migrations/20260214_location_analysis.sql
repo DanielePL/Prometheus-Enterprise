@@ -1,16 +1,15 @@
--- Location Analysis tables and member address fields
+-- Location Analysis (clean slate)
 
--- Add address fields to members
 ALTER TABLE members ADD COLUMN IF NOT EXISTS postal_code TEXT;
 ALTER TABLE members ADD COLUMN IF NOT EXISTS city TEXT;
 ALTER TABLE members ADD COLUMN IF NOT EXISTS address TEXT;
-
--- Add location fields to gyms
 ALTER TABLE gyms ADD COLUMN IF NOT EXISTS postal_code TEXT;
 ALTER TABLE gyms ADD COLUMN IF NOT EXISTS city TEXT;
 ALTER TABLE gyms ADD COLUMN IF NOT EXISTS area_sqm DECIMAL(10,2);
 
--- Competitors table
+DROP TABLE IF EXISTS expansion_scenarios CASCADE;
+DROP TABLE IF EXISTS competitors CASCADE;
+
 CREATE TABLE competitors (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     gym_id UUID NOT NULL REFERENCES gyms(id) ON DELETE CASCADE,
@@ -28,7 +27,6 @@ CREATE TABLE competitors (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Expansion scenarios table
 CREATE TABLE expansion_scenarios (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     gym_id UUID NOT NULL REFERENCES gyms(id) ON DELETE CASCADE,
@@ -51,29 +49,16 @@ CREATE TABLE expansion_scenarios (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Indexes
 CREATE INDEX idx_competitors_gym_id ON competitors(gym_id);
 CREATE INDEX idx_expansion_scenarios_gym_id ON expansion_scenarios(gym_id);
 
--- RLS
+CREATE TRIGGER update_competitors_updated_at BEFORE UPDATE ON competitors FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+CREATE TRIGGER update_expansion_scenarios_updated_at BEFORE UPDATE ON expansion_scenarios FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
 ALTER TABLE competitors ENABLE ROW LEVEL SECURITY;
 ALTER TABLE expansion_scenarios ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users can manage competitors for their gym"
-    ON competitors FOR ALL
-    USING (gym_id IN (SELECT gym_id FROM profiles WHERE id = auth.uid()));
-
-CREATE POLICY "Users can manage expansion scenarios for their gym"
-    ON expansion_scenarios FOR ALL
-    USING (gym_id IN (SELECT gym_id FROM profiles WHERE id = auth.uid()));
-
--- Auto-update triggers
-CREATE TRIGGER update_competitors_updated_at
-    BEFORE UPDATE ON competitors
-    FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER update_expansion_scenarios_updated_at
-    BEFORE UPDATE ON expansion_scenarios
-    FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
+CREATE POLICY "Users can manage competitors for their gym" ON competitors FOR ALL
+USING (gym_id IN (SELECT gym_id FROM profiles WHERE id = auth.uid()));
+CREATE POLICY "Users can manage expansion scenarios for their gym" ON expansion_scenarios FOR ALL
+USING (gym_id IN (SELECT gym_id FROM profiles WHERE id = auth.uid()));

@@ -5,10 +5,20 @@ import { isDemoMode, DEMO_COACHES, DEMO_COACH_STATS } from './demoData';
 export type CoachInsert = InsertTables<'coaches'>;
 export type CoachUpdate = UpdateTables<'coaches'>;
 
+// In-memory store for demo mode mutations
+let demoCoachOverrides: Coach[] | null = null;
+
+function getDemoCoaches(): Coach[] {
+  if (demoCoachOverrides === null) {
+    demoCoachOverrides = [...DEMO_COACHES] as Coach[];
+  }
+  return demoCoachOverrides;
+}
+
 export const coachesService = {
   async getAll(gymId: string) {
     if (isDemoMode()) {
-      return DEMO_COACHES;
+      return getDemoCoaches();
     }
 
     const { data, error } = await supabase
@@ -23,7 +33,7 @@ export const coachesService = {
 
   async getActive(gymId: string) {
     if (isDemoMode()) {
-      return DEMO_COACHES.filter(c => c.is_active);
+      return getDemoCoaches().filter(c => c.is_active);
     }
 
     const { data, error } = await supabase
@@ -53,6 +63,12 @@ export const coachesService = {
   },
 
   async create(coach: CoachInsert) {
+    if (isDemoMode()) {
+      const newCoach = { ...coach, id: `demo-${Date.now()}`, created_at: new Date().toISOString(), updated_at: new Date().toISOString(), profile_id: null, avatar_url: null, rating: 0, sessions_this_month: 0, revenue_this_month: 0, client_count: 0, is_active: true } as Coach;
+      getDemoCoaches().push(newCoach);
+      return newCoach;
+    }
+
     const { data, error } = await supabase
       .from('coaches')
       .insert(coach)
@@ -64,6 +80,16 @@ export const coachesService = {
   },
 
   async update(id: string, updates: CoachUpdate) {
+    if (isDemoMode()) {
+      const coaches = getDemoCoaches();
+      const idx = coaches.findIndex(c => c.id === id);
+      if (idx !== -1) {
+        coaches[idx] = { ...coaches[idx], ...updates, updated_at: new Date().toISOString() } as Coach;
+        return coaches[idx];
+      }
+      return { ...updates, id, updated_at: new Date().toISOString() } as Coach;
+    }
+
     const { data, error } = await supabase
       .from('coaches')
       .update({ ...updates, updated_at: new Date().toISOString() })
@@ -76,11 +102,28 @@ export const coachesService = {
   },
 
   async delete(id: string) {
+    if (isDemoMode()) {
+      const coaches = getDemoCoaches();
+      const idx = coaches.findIndex(c => c.id === id);
+      if (idx !== -1) coaches.splice(idx, 1);
+      return;
+    }
+
     const { error } = await supabase.from('coaches').delete().eq('id', id);
     if (error) throw error;
   },
 
   async toggleActive(id: string, isActive: boolean) {
+    if (isDemoMode()) {
+      const coaches = getDemoCoaches();
+      const idx = coaches.findIndex(c => c.id === id);
+      if (idx !== -1) {
+        coaches[idx] = { ...coaches[idx], is_active: isActive, updated_at: new Date().toISOString() } as Coach;
+        return coaches[idx];
+      }
+      return { id, is_active: isActive } as Coach;
+    }
+
     const { data, error } = await supabase
       .from('coaches')
       .update({ is_active: isActive, updated_at: new Date().toISOString() })

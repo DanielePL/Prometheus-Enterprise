@@ -12,6 +12,7 @@ import {
   Member,
 } from '@/types/database';
 import { isDemoMode, DEMO_ACCESS_LOGS, DEMO_ACCESS_STATS, DEMO_ACCESS_SETTINGS } from './demoData';
+import { alertsService } from './alerts';
 
 // Default opening hours
 export const DEFAULT_OPENING_HOURS: OpeningHours = {
@@ -348,6 +349,11 @@ export const accessControlService = {
 
   isGymOpen(settings: GymAccessSettings): boolean {
     const now = new Date();
+
+    // Check holiday closures
+    const todayStr = now.toISOString().split('T')[0];
+    if (settings.holiday_closures?.includes(todayStr)) return false;
+
     const dayNames = [
       'sunday',
       'monday',
@@ -439,6 +445,37 @@ export const accessControlService = {
         terminal_name: options?.terminalName,
       });
 
+      // Create alert for denied access (skip in demo mode)
+      if (!isDemoMode()) {
+        const settings = await this.getSettings(gymId);
+        const isAfterHours = validation.denialReason === 'Gym is currently closed';
+        const shouldNotify =
+          (isAfterHours && settings?.notify_on_after_hours_attempt) ||
+          (!isAfterHours && settings?.notify_on_denied_access);
+
+        if (shouldNotify) {
+          // Get member name for the alert
+          const { data: member } = await supabase
+            .from('members')
+            .select('name')
+            .eq('id', memberId)
+            .single();
+
+          const methodLabel =
+            method === 'face_recognition' ? 'Face Recognition' :
+            method === 'bluetooth' ? 'Device' :
+            method === 'qr_code' ? 'QR Code' : 'Manual';
+
+          alertsService.createAccessDeniedAlert(
+            gymId,
+            member?.name || 'Unknown Member',
+            memberId,
+            validation.denialReason || 'Access denied',
+            methodLabel
+          ).catch(console.error);
+        }
+      }
+
       return {
         success: false,
         message: validation.denialReason || 'Access denied',
@@ -519,6 +556,48 @@ export const accessControlService = {
   // ==========================================
   // MEMBER ACCESS INFO
   // ==========================================
+
+  subscribeToAccessLogs(
+    gymId: string,
+    callback: (log: AccessLog) => void
+  ): { unsubscribe: () => void } {
+    const channel = supabase
+      .channel(`access-logs-${gymId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'access_logs',
+          filter: `gym_id=eq.${gymId}`,
+        },
+        (payload) => {
+          callback(payload.new as AccessLog);
+        }
+      )
+      .subscribe();
+
+    return {
+      unsubscribe: () => {
+        supabase.removeChannel(channel);
+      },
+    };
+  },
+
+  async getCurrentOccupancy(gymId: string): Promise<number> {
+    if (isDemoMode()) return 14;
+
+    const today = new Date().toISOString().split('T')[0];
+    const { count, error } = await supabase
+      .from('member_visits')
+      .select('*', { count: 'exact', head: true })
+      .eq('gym_id', gymId)
+      .is('check_out', null)
+      .gte('check_in', today + 'T00:00:00');
+
+    if (error) throw error;
+    return count || 0;
+  },
 
   async getMemberAccessInfo(
     memberId: string

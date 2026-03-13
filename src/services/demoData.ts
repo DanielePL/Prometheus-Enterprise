@@ -3,6 +3,7 @@
 
 import type { AccessMethod, AccessStatus } from '@/types/database';
 import type { CoachSummary, CoachClient, CoachWorkout, CoachProgram } from '@/types/coachIntegration';
+import type { CoachResponseMetrics, CoachServiceIndex, CoachActivityEvent } from '@/types/coachDetail';
 
 // ============================================================
 // HELPERS
@@ -78,6 +79,7 @@ export const DEMO_COACHES = [
   { id: 'c4', gym_id: 'demo-gym-id', profile_id: null, name: 'Elena Weber', email: 'elena.weber@prometheus-gym.ch', phone: '+41 77 444 5566', specializations: ['Yoga', 'Pilates', 'Mobility'], is_active: true, client_count: 22, hourly_rate: 100, bio: 'Certified Yoga Alliance RYT-500 instructor.', avatar_url: null, rating: 4.9, sessions_this_month: 44, revenue_this_month: 4400, created_at: daysAgo(320), updated_at: daysAgo(1) },
   { id: 'c5', gym_id: 'demo-gym-id', profile_id: null, name: 'Noah Keller', email: 'noah.keller@prometheus-gym.ch', phone: '+41 79 555 6677', specializations: ['Strength Training', 'Powerlifting'], is_active: true, client_count: 12, hourly_rate: 80, bio: 'Former competitive powerlifter, specializing in strength gains.', avatar_url: null, rating: 4.6, sessions_this_month: 32, revenue_this_month: 2560, created_at: daysAgo(280), updated_at: daysAgo(3) },
   { id: 'c6', gym_id: 'demo-gym-id', profile_id: null, name: 'Anna Fischer', email: 'anna.fischer@prometheus-gym.ch', phone: '+41 78 666 7788', specializations: ['Pilates', 'Rehabilitation'], is_active: false, client_count: 8, hourly_rate: 100, bio: 'Pilates instructor on parental leave.', avatar_url: null, rating: 4.5, sessions_this_month: 0, revenue_this_month: 0, created_at: daysAgo(400), updated_at: daysAgo(60) },
+  { id: 'c7', gym_id: 'demo-gym-id', profile_id: null, name: 'Daniele Pauli', email: 'danielepauli@gmail.com', phone: '+41 79 777 8899', specializations: ['Strength Training', 'Functional Training', 'Nutrition'], is_active: true, client_count: 14, hourly_rate: 110, bio: 'Founder & Head Coach. Certified strength and conditioning specialist with a passion for functional fitness and holistic athlete development.', avatar_url: null, rating: 4.9, sessions_this_month: 42, revenue_this_month: 4620, created_at: daysAgo(500), updated_at: daysAgo(0) },
 ];
 
 // ============================================================
@@ -168,10 +170,10 @@ export const DEMO_MEMBER_STATS = {
 };
 
 export const DEMO_COACH_STATS = {
-  total: 6,
-  active: 5,
-  totalClients: 99,
-  totalRevenue: 8500,
+  total: 7,
+  active: 6,
+  totalClients: 113,
+  totalRevenue: 13100,
 };
 
 export const DEMO_PAYMENT_STATS = {
@@ -599,12 +601,14 @@ export const DEMO_COACH_INTEGRATIONS = [
   { id: 'ci-1', gym_id: 'demo-gym-id', coach_id: 'c1', coach_app_user_id: 'coach-app-user-1', coach_app_email: 'marco.bianchi@prometheus-gym.ch', status: 'linked' as const, linked_at: daysAgo(60), last_sync_at: hoursAgo(2), cached_data: { totalClients: 18, totalWorkouts: 45, totalPrograms: 6, activeSessions: 12, lastActivity: daysAgo(0) }, created_at: daysAgo(90), updated_at: hoursAgo(2) },
   { id: 'ci-2', gym_id: 'demo-gym-id', coach_id: 'c2', coach_app_user_id: 'coach-app-user-2', coach_app_email: 'sofia.meier@prometheus-gym.ch', status: 'linked' as const, linked_at: daysAgo(45), last_sync_at: hoursAgo(4), cached_data: { totalClients: 24, totalWorkouts: 62, totalPrograms: 8, activeSessions: 18, lastActivity: daysAgo(0) }, created_at: daysAgo(60), updated_at: hoursAgo(4) },
   { id: 'ci-3', gym_id: 'demo-gym-id', coach_id: 'c4', coach_app_user_id: 'coach-app-user-3', coach_app_email: 'elena.weber@prometheus-gym.ch', status: 'linked' as const, linked_at: daysAgo(30), last_sync_at: hoursAgo(6), cached_data: { totalClients: 22, totalWorkouts: 38, totalPrograms: 5, activeSessions: 10, lastActivity: daysAgo(1) }, created_at: daysAgo(45), updated_at: hoursAgo(6) },
+  { id: 'ci-4', gym_id: 'demo-gym-id', coach_id: 'c7', coach_app_user_id: 'coach-app-user-dp', coach_app_email: 'danielepauli@gmail.com', status: 'linked' as const, linked_at: daysAgo(90), last_sync_at: hoursAgo(1), cached_data: { totalClients: 14, totalWorkouts: 52, totalPrograms: 7, activeSessions: 16, lastActivity: daysAgo(0) }, created_at: daysAgo(120), updated_at: hoursAgo(1) },
 ];
 
 export const DEMO_COACH_SUMMARIES: Record<string, CoachSummary> = {
   'coach-app-user-1': { userId: 'coach-app-user-1', email: 'marco.bianchi@prometheus-gym.ch', fullName: 'Marco Bianchi', totalClients: 18, totalWorkouts: 45, totalPrograms: 6, activeSessions: 12, lastActivity: daysAgo(0) },
   'coach-app-user-2': { userId: 'coach-app-user-2', email: 'sofia.meier@prometheus-gym.ch', fullName: 'Sofia Meier', totalClients: 24, totalWorkouts: 62, totalPrograms: 8, activeSessions: 18, lastActivity: daysAgo(0) },
   'coach-app-user-3': { userId: 'coach-app-user-3', email: 'elena.weber@prometheus-gym.ch', fullName: 'Elena Weber', totalClients: 22, totalWorkouts: 38, totalPrograms: 5, activeSessions: 10, lastActivity: daysAgo(1) },
+  'coach-app-user-dp': { userId: 'coach-app-user-dp', email: 'danielepauli@gmail.com', fullName: 'Daniele Pauli', totalClients: 14, totalWorkouts: 52, totalPrograms: 7, activeSessions: 16, lastActivity: daysAgo(0) },
 };
 
 export const DEMO_COACH_CLIENTS: Record<string, CoachClient[]> = {
@@ -622,6 +626,22 @@ export const DEMO_COACH_CLIENTS: Record<string, CoachClient[]> = {
     { id: 'cc-7', name: 'Sofia Keller', email: 'sofia.keller@sunrise.ch', status: 'active', startDate: daysAgo(120), lastSession: daysAgo(1) },
     { id: 'cc-8', name: 'Nina Hartmann', email: 'nina.hartmann@sunrise.ch', status: 'active', startDate: daysAgo(200), lastSession: daysAgo(5) },
     { id: 'cc-9', name: 'Julia Frei', email: 'julia.frei@protonmail.com', status: 'active', startDate: daysAgo(170), lastSession: daysAgo(2) },
+  ],
+  'coach-app-user-dp': [
+    { id: 'cc-10', name: 'Raphael Ammann', email: 'raphael.ammann@bluewin.ch', status: 'active', startDate: daysAgo(320), lastSession: daysAgo(1) },
+    { id: 'cc-11', name: 'Fabienne Gerber', email: 'fabienne.gerber@gmail.com', status: 'active', startDate: daysAgo(280), lastSession: daysAgo(0) },
+    { id: 'cc-12', name: 'Marco Wyss', email: 'marco.wyss@protonmail.com', status: 'active', startDate: daysAgo(240), lastSession: daysAgo(2) },
+    { id: 'cc-13', name: 'Janine Bühler', email: 'janine.buehler@sunrise.ch', status: 'active', startDate: daysAgo(190), lastSession: daysAgo(1) },
+    { id: 'cc-14', name: 'Patrick Lehmann', email: 'patrick.lehmann@outlook.com', status: 'active', startDate: daysAgo(150), lastSession: daysAgo(3) },
+    { id: 'cc-15', name: 'Selina Roth', email: 'selina.roth@gmail.com', status: 'active', startDate: daysAgo(130), lastSession: daysAgo(0) },
+    { id: 'cc-16', name: 'Tim Baumann', email: 'tim.baumann@bluewin.ch', status: 'active', startDate: daysAgo(100), lastSession: daysAgo(4) },
+    { id: 'cc-17', name: 'Noemi Sutter', email: 'noemi.sutter@gmail.com', status: 'active', startDate: daysAgo(85), lastSession: daysAgo(1) },
+    { id: 'cc-18', name: 'Nico Walther', email: 'nico.walther@protonmail.com', status: 'active', startDate: daysAgo(60), lastSession: daysAgo(2) },
+    { id: 'cc-19', name: 'Alina Fehr', email: 'alina.fehr@sunrise.ch', status: 'active', startDate: daysAgo(45), lastSession: daysAgo(0) },
+    { id: 'cc-20', name: 'Yannick Moser', email: 'yannick.moser@outlook.com', status: 'active', startDate: daysAgo(30), lastSession: daysAgo(5) },
+    { id: 'cc-21', name: 'Lena Bosshard', email: 'lena.bosshard@gmail.com', status: 'active', startDate: daysAgo(25), lastSession: daysAgo(1) },
+    { id: 'cc-22', name: 'Sven Dietrich', email: 'sven.dietrich@bluewin.ch', status: 'active', startDate: daysAgo(15), lastSession: daysAgo(3) },
+    { id: 'cc-23', name: 'Chiara Volpe', email: 'chiara.volpe@gmail.com', status: 'active', startDate: daysAgo(10), lastSession: daysAgo(0) },
   ],
 };
 
@@ -641,6 +661,17 @@ export const DEMO_COACH_WORKOUTS: Record<string, CoachWorkout[]> = {
     { id: 'cw-8', title: 'Yin Yoga Relax', type: 'yoga', duration: 75, exerciseCount: 10, createdAt: daysAgo(10) },
     { id: 'cw-9', title: 'Mobility & Stretch', type: 'mobility', duration: 30, exerciseCount: 8, createdAt: daysAgo(5) },
   ],
+  'coach-app-user-dp': [
+    { id: 'cw-10', title: 'Full Body Strength A', type: 'strength', duration: 60, exerciseCount: 8, createdAt: daysAgo(28) },
+    { id: 'cw-11', title: 'Full Body Strength B', type: 'strength', duration: 60, exerciseCount: 8, createdAt: daysAgo(26) },
+    { id: 'cw-12', title: 'Upper/Lower Split - Upper', type: 'strength', duration: 55, exerciseCount: 7, createdAt: daysAgo(21) },
+    { id: 'cw-13', title: 'Upper/Lower Split - Lower', type: 'strength', duration: 55, exerciseCount: 7, createdAt: daysAgo(21) },
+    { id: 'cw-14', title: 'Functional Circuit', type: 'functional', duration: 45, exerciseCount: 10, createdAt: daysAgo(14) },
+    { id: 'cw-15', title: 'Kettlebell Complex', type: 'functional', duration: 35, exerciseCount: 6, createdAt: daysAgo(10) },
+    { id: 'cw-16', title: 'Olympic Lifting Basics', type: 'strength', duration: 50, exerciseCount: 5, createdAt: daysAgo(7) },
+    { id: 'cw-17', title: 'Metabolic Conditioning', type: 'hiit', duration: 30, exerciseCount: 8, createdAt: daysAgo(3) },
+    { id: 'cw-18', title: 'Recovery & Mobility Flow', type: 'mobility', duration: 40, exerciseCount: 12, createdAt: daysAgo(1) },
+  ],
 };
 
 export const DEMO_COACH_PROGRAMS: Record<string, CoachProgram[]> = {
@@ -655,6 +686,15 @@ export const DEMO_COACH_PROGRAMS: Record<string, CoachProgram[]> = {
   'coach-app-user-3': [
     { id: 'cp-5', title: 'Flexibility Journey', description: 'Progressive flexibility and mobility program', weekCount: 8, clientCount: 15, createdAt: daysAgo(35) },
     { id: 'cp-6', title: 'Stress Relief Yoga', description: 'Mindfulness-based yoga for stress management', weekCount: 4, clientCount: 8, createdAt: daysAgo(20) },
+  ],
+  'coach-app-user-dp': [
+    { id: 'cp-7', title: '12-Week Strength Foundation', description: 'Progressive overload program building a solid strength base for all levels', weekCount: 12, clientCount: 6, createdAt: daysAgo(90) },
+    { id: 'cp-8', title: '8-Week Functional Athlete', description: 'Combining strength, conditioning and mobility for well-rounded fitness', weekCount: 8, clientCount: 5, createdAt: daysAgo(60) },
+    { id: 'cp-9', title: '6-Week Shred', description: 'High-intensity fat loss with strength preservation', weekCount: 6, clientCount: 8, createdAt: daysAgo(42) },
+    { id: 'cp-10', title: 'Beginner Strength 101', description: 'Learn the big lifts with proper form and progressive programming', weekCount: 8, clientCount: 4, createdAt: daysAgo(30) },
+    { id: 'cp-11', title: 'Nutrition Reset Challenge', description: '4-week nutrition coaching with meal plans and weekly check-ins', weekCount: 4, clientCount: 10, createdAt: daysAgo(20) },
+    { id: 'cp-12', title: 'Olympic Lifting Progression', description: 'Master the snatch and clean & jerk with structured progressions', weekCount: 10, clientCount: 3, createdAt: daysAgo(14) },
+    { id: 'cp-13', title: 'Comeback Program', description: 'Return to training after injury or long break - gradual build-up', weekCount: 6, clientCount: 2, createdAt: daysAgo(7) },
   ],
 };
 
@@ -692,3 +732,264 @@ export const DEMO_MEMBER_NOTES: MemberNote[] = [
   { id: 'note-6', member_id: 'm2', note: 'VIP member - always greet by name, prefers morning slots', priority: 'medium', category: 'personal', created_at: daysAgo(60), created_by: 'Marco Bianchi', is_active: true },
   { id: 'note-7', member_id: 'm8', note: 'Payment discussion pending - contact about outstanding balance', priority: 'medium', category: 'payment', created_at: daysAgo(7), created_by: 'Admin', is_active: true },
 ];
+
+// ============================================================
+// MEMBERSHIP PLANS (gym-defined plan templates)
+// ============================================================
+
+function dateStr(daysFromNow: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + daysFromNow);
+  return d.toISOString().split('T')[0];
+}
+
+export const DEMO_MEMBERSHIP_PLANS = [
+  // Main plans
+  { id: 'plan-daily', gym_id: 'demo-gym-id', name: 'Daily Drop-In', description: 'Single day visit with no contract commitment', category: 'main' as const, billing_interval: 'daily' as const, price: 25, setup_fee: 0, min_contract_months: 0, cancellation_notice_days: 0, auto_renew: false, features: ['Gym Access', 'Group Classes'], includes_classes: true, includes_sauna: false, includes_personal_training: 0, max_members: null, current_member_count: 0, is_active: true, is_popular: false, sort_order: 0, color: '#94A3B8', created_at: daysAgo(300), updated_at: daysAgo(1) },
+  { id: 'plan-monthly', gym_id: 'demo-gym-id', name: 'Monthly', description: 'Flexible monthly plan, cancel anytime', category: 'main' as const, billing_interval: 'monthly' as const, price: 89, setup_fee: 49, min_contract_months: 1, cancellation_notice_days: 30, auto_renew: true, features: ['Gym Access', 'Group Classes', 'App Access'], includes_classes: true, includes_sauna: false, includes_personal_training: 0, max_members: null, current_member_count: 18, is_active: true, is_popular: false, sort_order: 1, color: '#3B82F6', created_at: daysAgo(300), updated_at: daysAgo(1) },
+  { id: 'plan-3month', gym_id: 'demo-gym-id', name: '3-Month Plan', description: '3 month commitment with auto-renewal', category: 'main' as const, billing_interval: 'quarterly' as const, price: 79, setup_fee: 49, min_contract_months: 3, cancellation_notice_days: 30, auto_renew: true, features: ['Gym Access', 'Group Classes', 'App Access', 'Sauna 1x/week'], includes_classes: true, includes_sauna: true, includes_personal_training: 0, max_members: null, current_member_count: 24, is_active: true, is_popular: true, sort_order: 2, color: '#8B5CF6', created_at: daysAgo(300), updated_at: daysAgo(1) },
+  { id: 'plan-6month', gym_id: 'demo-gym-id', name: '6-Month Plan', description: '6 month commitment at a discounted rate', category: 'main' as const, billing_interval: 'semi_annual' as const, price: 69, setup_fee: 0, min_contract_months: 6, cancellation_notice_days: 60, auto_renew: true, features: ['Gym Access', 'Group Classes', 'App Access', 'Sauna', '1 PT/month'], includes_classes: true, includes_sauna: true, includes_personal_training: 1, max_members: null, current_member_count: 31, is_active: true, is_popular: false, sort_order: 3, color: '#F97316', created_at: daysAgo(300), updated_at: daysAgo(1) },
+  { id: 'plan-annual', gym_id: 'demo-gym-id', name: 'Annual Plan', description: '12 month commitment, best value', category: 'main' as const, billing_interval: 'annual' as const, price: 59, setup_fee: 0, min_contract_months: 12, cancellation_notice_days: 90, auto_renew: true, features: ['Gym Access', 'All Classes', 'App Access', 'Sauna', '2 PT/month', 'Guest Pass'], includes_classes: true, includes_sauna: true, includes_personal_training: 2, max_members: null, current_member_count: 42, is_active: true, is_popular: false, sort_order: 4, color: '#EAB308', created_at: daysAgo(300), updated_at: daysAgo(1) },
+  { id: 'plan-premium', gym_id: 'demo-gym-id', name: 'Premium VIP', description: 'All-inclusive with unlimited personal training', category: 'main' as const, billing_interval: 'monthly' as const, price: 199, setup_fee: 0, min_contract_months: 1, cancellation_notice_days: 30, auto_renew: true, features: ['24/7 Gym Access', 'All Classes', 'Unlimited PT', 'Sauna & Wellness', 'Nutrition Coaching', 'Priority Booking', 'Guest Pass'], includes_classes: true, includes_sauna: true, includes_personal_training: 99, max_members: 20, current_member_count: 12, is_active: true, is_popular: false, sort_order: 5, color: '#DC2626', created_at: daysAgo(300), updated_at: daysAgo(1) },
+  // Addon plans
+  { id: 'plan-towel', gym_id: 'demo-gym-id', name: 'Towel Service', description: 'Fresh towel on every visit', category: 'addon' as const, billing_interval: 'monthly' as const, price: 15, setup_fee: 0, min_contract_months: 0, cancellation_notice_days: 0, auto_renew: true, features: ['1 fresh towel per visit'], includes_classes: false, includes_sauna: false, includes_personal_training: 0, max_members: null, current_member_count: 34, is_active: true, is_popular: false, sort_order: 10, color: '#06B6D4', created_at: daysAgo(300), updated_at: daysAgo(1) },
+  { id: 'plan-drinks', gym_id: 'demo-gym-id', name: 'Drinks Unlimited', description: 'Unlimited drinks (water, shakes, isotonic)', category: 'addon' as const, billing_interval: 'monthly' as const, price: 29, setup_fee: 0, min_contract_months: 0, cancellation_notice_days: 0, auto_renew: true, features: ['Unlimited Water', 'Protein Shakes', 'Isotonic Drinks'], includes_classes: false, includes_sauna: false, includes_personal_training: 0, max_members: null, current_member_count: 22, is_active: true, is_popular: false, sort_order: 11, color: '#10B981', created_at: daysAgo(300), updated_at: daysAgo(1) },
+  { id: 'plan-pt5', gym_id: 'demo-gym-id', name: 'PT 5-Pack', description: '5 personal training sessions', category: 'addon' as const, billing_interval: 'monthly' as const, price: 450, setup_fee: 0, min_contract_months: 0, cancellation_notice_days: 0, auto_renew: false, features: ['5x 60min Personal Training', 'Training Plan', 'Progress Tracking'], includes_classes: false, includes_sauna: false, includes_personal_training: 5, max_members: null, current_member_count: 8, is_active: true, is_popular: false, sort_order: 12, color: '#F43F5E', created_at: daysAgo(300), updated_at: daysAgo(1) },
+  { id: 'plan-pt10', gym_id: 'demo-gym-id', name: 'PT 10-Pack', description: '10 personal training sessions', category: 'addon' as const, billing_interval: 'monthly' as const, price: 800, setup_fee: 0, min_contract_months: 0, cancellation_notice_days: 0, auto_renew: false, features: ['10x 60min Personal Training', 'Training Plan', 'Nutrition Coaching', 'Progress Tracking'], includes_classes: false, includes_sauna: false, includes_personal_training: 10, max_members: null, current_member_count: 5, is_active: true, is_popular: false, sort_order: 13, color: '#E11D48', created_at: daysAgo(300), updated_at: daysAgo(1) },
+  { id: 'plan-sauna', gym_id: 'demo-gym-id', name: 'Sauna Access', description: 'Unlimited sauna access', category: 'addon' as const, billing_interval: 'monthly' as const, price: 25, setup_fee: 0, min_contract_months: 0, cancellation_notice_days: 0, auto_renew: true, features: ['Unlimited Sauna Access', 'Towel Included'], includes_classes: false, includes_sauna: true, includes_personal_training: 0, max_members: null, current_member_count: 18, is_active: true, is_popular: false, sort_order: 14, color: '#D97706', created_at: daysAgo(300), updated_at: daysAgo(1) },
+];
+
+// ============================================================
+// MEMBERSHIP CONTRACTS
+// ============================================================
+
+export const DEMO_MEMBERSHIP_CONTRACTS = [
+  // Active contracts
+  { id: 'contract-1', gym_id: 'demo-gym-id', member_id: 'm1', plan_id: 'plan-annual', contract_number: 'PRO-2503-0001', status: 'active' as const, start_date: dateStr(-365), end_date: dateStr(0), next_billing_date: dateStr(0), monthly_amount: 59, setup_fee_amount: 0, setup_fee_paid: true, discount_percent: 0, discount_reason: null, payment_method: 'direct_debit', stripe_subscription_id: null, auto_renew: true, cancelled_at: null, cancellation_type: null, cancellation_reason: null, cancellation_effective_date: null, cancellation_proof_url: null, cancelled_by: null, notes: null, created_at: daysAgo(365), updated_at: daysAgo(1), member: { id: 'm1', name: 'Emma Schneider', email: 'emma.schneider@outlook.com', avatar_url: null }, plan: { id: 'plan-annual', name: 'Annual Plan', category: 'main', billing_interval: 'annual', color: '#EAB308' } },
+  { id: 'contract-2', gym_id: 'demo-gym-id', member_id: 'm2', plan_id: 'plan-premium', contract_number: 'PRO-2503-0002', status: 'active' as const, start_date: dateStr(-200), end_date: null, next_billing_date: dateStr(5), monthly_amount: 199, setup_fee_amount: 0, setup_fee_paid: true, discount_percent: 0, discount_reason: null, payment_method: 'card', stripe_subscription_id: null, auto_renew: true, cancelled_at: null, cancellation_type: null, cancellation_reason: null, cancellation_effective_date: null, cancellation_proof_url: null, cancelled_by: null, notes: 'VIP client, very satisfied', created_at: daysAgo(200), updated_at: daysAgo(1), member: { id: 'm2', name: 'Laura Zimmermann', email: 'laura.zimmermann@bluewin.ch', avatar_url: null }, plan: { id: 'plan-premium', name: 'Premium VIP', category: 'main', billing_interval: 'monthly', color: '#DC2626' } },
+  { id: 'contract-3', gym_id: 'demo-gym-id', member_id: 'm3', plan_id: 'plan-annual', contract_number: 'PRO-2503-0003', status: 'active' as const, start_date: dateStr(-300), end_date: dateStr(65), next_billing_date: dateStr(65), monthly_amount: 59, setup_fee_amount: 0, setup_fee_paid: true, discount_percent: 10, discount_reason: 'Founding member', payment_method: 'direct_debit', stripe_subscription_id: null, auto_renew: true, cancelled_at: null, cancellation_type: null, cancellation_reason: null, cancellation_effective_date: null, cancellation_proof_url: null, cancelled_by: null, notes: null, created_at: daysAgo(300), updated_at: daysAgo(2), member: { id: 'm3', name: 'Thomas Brunner', email: 'thomas.brunner@gmail.com', avatar_url: null }, plan: { id: 'plan-annual', name: 'Annual Plan', category: 'main', billing_interval: 'annual', color: '#EAB308' } },
+  { id: 'contract-4', gym_id: 'demo-gym-id', member_id: 'm5', plan_id: 'plan-3month', contract_number: 'PRO-2503-0004', status: 'active' as const, start_date: dateStr(-60), end_date: dateStr(30), next_billing_date: dateStr(30), monthly_amount: 79, setup_fee_amount: 49, setup_fee_paid: true, discount_percent: 0, discount_reason: null, payment_method: 'direct_debit', stripe_subscription_id: null, auto_renew: true, cancelled_at: null, cancellation_type: null, cancellation_reason: null, cancellation_effective_date: null, cancellation_proof_url: null, cancelled_by: null, notes: null, created_at: daysAgo(60), updated_at: daysAgo(5), member: { id: 'm5', name: 'Luca Müller', email: 'luca.mueller@gmail.com', avatar_url: null }, plan: { id: 'plan-3month', name: '3-Month Plan', category: 'main', billing_interval: 'quarterly', color: '#8B5CF6' } },
+  { id: 'contract-5', gym_id: 'demo-gym-id', member_id: 'm6', plan_id: 'plan-6month', contract_number: 'PRO-2503-0005', status: 'active' as const, start_date: dateStr(-90), end_date: dateStr(90), next_billing_date: dateStr(90), monthly_amount: 69, setup_fee_amount: 0, setup_fee_paid: true, discount_percent: 0, discount_reason: null, payment_method: 'card', stripe_subscription_id: null, auto_renew: true, cancelled_at: null, cancellation_type: null, cancellation_reason: null, cancellation_effective_date: null, cancellation_proof_url: null, cancelled_by: null, notes: null, created_at: daysAgo(90), updated_at: daysAgo(3), member: { id: 'm6', name: 'Sofia Keller', email: 'sofia.keller@sunrise.ch', avatar_url: null }, plan: { id: 'plan-6month', name: '6-Month Plan', category: 'main', billing_interval: 'semi_annual', color: '#F97316' } },
+  { id: 'contract-6', gym_id: 'demo-gym-id', member_id: 'm7', plan_id: 'plan-monthly', contract_number: 'PRO-2503-0006', status: 'active' as const, start_date: dateStr(-45), end_date: null, next_billing_date: dateStr(15), monthly_amount: 89, setup_fee_amount: 49, setup_fee_paid: true, discount_percent: 0, discount_reason: null, payment_method: 'direct_debit', stripe_subscription_id: null, auto_renew: true, cancelled_at: null, cancellation_type: null, cancellation_reason: null, cancellation_effective_date: null, cancellation_proof_url: null, cancelled_by: null, notes: null, created_at: daysAgo(45), updated_at: daysAgo(1), member: { id: 'm7', name: 'Mia Huber', email: 'mia.huber@gmail.com', avatar_url: null }, plan: { id: 'plan-monthly', name: 'Monthly', category: 'main', billing_interval: 'monthly', color: '#3B82F6' } },
+  { id: 'contract-7', gym_id: 'demo-gym-id', member_id: 'm9', plan_id: 'plan-3month', contract_number: 'PRO-2503-0007', status: 'active' as const, start_date: dateStr(-30), end_date: dateStr(60), next_billing_date: dateStr(60), monthly_amount: 79, setup_fee_amount: 49, setup_fee_paid: true, discount_percent: 0, discount_reason: null, payment_method: 'paypal', stripe_subscription_id: null, auto_renew: true, cancelled_at: null, cancellation_type: null, cancellation_reason: null, cancellation_effective_date: null, cancellation_proof_url: null, cancelled_by: null, notes: null, created_at: daysAgo(30), updated_at: daysAgo(2), member: { id: 'm9', name: 'Lea Bachmann', email: 'lea.bachmann@protonmail.com', avatar_url: null }, plan: { id: 'plan-3month', name: '3-Month Plan', category: 'main', billing_interval: 'quarterly', color: '#8B5CF6' } },
+  // Frozen contract
+  { id: 'contract-8', gym_id: 'demo-gym-id', member_id: 'm8', plan_id: 'plan-6month', contract_number: 'PRO-2503-0008', status: 'frozen' as const, start_date: dateStr(-120), end_date: dateStr(90), next_billing_date: null, monthly_amount: 69, setup_fee_amount: 0, setup_fee_paid: true, discount_percent: 0, discount_reason: null, payment_method: 'direct_debit', stripe_subscription_id: null, auto_renew: true, cancelled_at: null, cancellation_type: null, cancellation_reason: null, cancellation_effective_date: null, cancellation_proof_url: null, cancelled_by: null, notes: 'Knee surgery, freeze approved', created_at: daysAgo(120), updated_at: daysAgo(10), member: { id: 'm8', name: 'David Steiner', email: 'david.steiner@sunrise.ch', avatar_url: null }, plan: { id: 'plan-6month', name: '6-Month Plan', category: 'main', billing_interval: 'semi_annual', color: '#F97316' } },
+  // Cancelled contracts
+  { id: 'contract-9', gym_id: 'demo-gym-id', member_id: 'm18', plan_id: 'plan-monthly', contract_number: 'PRO-2503-0009', status: 'cancelled' as const, start_date: dateStr(-90), end_date: dateStr(-30), next_billing_date: null, monthly_amount: 89, setup_fee_amount: 49, setup_fee_paid: true, discount_percent: 0, discount_reason: null, payment_method: 'direct_debit', stripe_subscription_id: null, auto_renew: false, cancelled_at: daysAgo(45), cancellation_type: 'regular' as const, cancellation_reason: 'Relocating to another city', cancellation_effective_date: dateStr(-30), cancellation_proof_url: null, cancelled_by: 'Admin', notes: null, created_at: daysAgo(90), updated_at: daysAgo(30), member: { id: 'm18', name: 'Elias Brunner', email: 'elias.brunner@outlook.com', avatar_url: null }, plan: { id: 'plan-monthly', name: 'Monthly', category: 'main', billing_interval: 'monthly', color: '#3B82F6' } },
+  { id: 'contract-10', gym_id: 'demo-gym-id', member_id: 'm21', plan_id: 'plan-3month', contract_number: 'PRO-2503-0010', status: 'cancelled' as const, start_date: dateStr(-100), end_date: dateStr(-10), next_billing_date: null, monthly_amount: 79, setup_fee_amount: 49, setup_fee_paid: true, discount_percent: 0, discount_reason: null, payment_method: 'card', stripe_subscription_id: null, auto_renew: false, cancelled_at: daysAgo(40), cancellation_type: 'extraordinary' as const, cancellation_reason: 'Medical certificate - herniated disc', cancellation_effective_date: dateStr(-10), cancellation_proof_url: null, cancelled_by: 'Admin', notes: 'Extraordinary cancellation with medical certificate', created_at: daysAgo(100), updated_at: daysAgo(10), member: { id: 'm21', name: 'Melanie Suter', email: 'melanie.suter@outlook.com', avatar_url: null }, plan: { id: 'plan-3month', name: '3-Month Plan', category: 'main', billing_interval: 'quarterly', color: '#8B5CF6' } },
+  // Expiring soon
+  { id: 'contract-11', gym_id: 'demo-gym-id', member_id: 'm14', plan_id: 'plan-6month', contract_number: 'PRO-2503-0011', status: 'active' as const, start_date: dateStr(-170), end_date: dateStr(10), next_billing_date: dateStr(10), monthly_amount: 69, setup_fee_amount: 0, setup_fee_paid: true, discount_percent: 5, discount_reason: 'Referral', payment_method: 'direct_debit', stripe_subscription_id: null, auto_renew: false, cancelled_at: null, cancellation_type: null, cancellation_reason: null, cancellation_effective_date: null, cancellation_proof_url: null, cancelled_by: null, notes: 'Expires in 10 days, no auto-renew!', created_at: daysAgo(170), updated_at: daysAgo(5), member: { id: 'm14', name: 'Julia Frei', email: 'julia.frei@protonmail.com', avatar_url: null }, plan: { id: 'plan-6month', name: '6-Month Plan', category: 'main', billing_interval: 'semi_annual', color: '#F97316' } },
+  { id: 'contract-12', gym_id: 'demo-gym-id', member_id: 'm19', plan_id: 'plan-monthly', contract_number: 'PRO-2503-0012', status: 'active' as const, start_date: dateStr(-25), end_date: dateStr(5), next_billing_date: dateStr(5), monthly_amount: 89, setup_fee_amount: 49, setup_fee_paid: true, discount_percent: 0, discount_reason: null, payment_method: 'card', stripe_subscription_id: null, auto_renew: true, cancelled_at: null, cancellation_type: null, cancellation_reason: null, cancellation_effective_date: null, cancellation_proof_url: null, cancelled_by: null, notes: null, created_at: daysAgo(25), updated_at: daysAgo(1), member: { id: 'm19', name: 'Anna Gerber', email: 'anna.gerber@protonmail.com', avatar_url: null }, plan: { id: 'plan-monthly', name: 'Monthly', category: 'main', billing_interval: 'monthly', color: '#3B82F6' } },
+];
+
+// ============================================================
+// MEMBERSHIP ADDONS
+// ============================================================
+
+export const DEMO_MEMBERSHIP_ADDONS = [
+  { id: 'addon-1', gym_id: 'demo-gym-id', member_id: 'm1', contract_id: 'contract-1', plan_id: 'plan-towel', status: 'active' as const, start_date: dateStr(-365), end_date: null, monthly_amount: 15, notes: null, created_at: daysAgo(365), updated_at: daysAgo(1), member: { id: 'm1', name: 'Emma Schneider', email: 'emma.schneider@outlook.com' }, plan: { id: 'plan-towel', name: 'Towel Service', price: 15, color: '#06B6D4' } },
+  { id: 'addon-2', gym_id: 'demo-gym-id', member_id: 'm1', contract_id: 'contract-1', plan_id: 'plan-drinks', status: 'active' as const, start_date: dateStr(-365), end_date: null, monthly_amount: 29, notes: null, created_at: daysAgo(365), updated_at: daysAgo(1), member: { id: 'm1', name: 'Emma Schneider', email: 'emma.schneider@outlook.com' }, plan: { id: 'plan-drinks', name: 'Drinks Unlimited', price: 29, color: '#10B981' } },
+  { id: 'addon-3', gym_id: 'demo-gym-id', member_id: 'm2', contract_id: 'contract-2', plan_id: 'plan-towel', status: 'active' as const, start_date: dateStr(-200), end_date: null, monthly_amount: 15, notes: null, created_at: daysAgo(200), updated_at: daysAgo(1), member: { id: 'm2', name: 'Laura Zimmermann', email: 'laura.zimmermann@bluewin.ch' }, plan: { id: 'plan-towel', name: 'Towel Service', price: 15, color: '#06B6D4' } },
+  { id: 'addon-4', gym_id: 'demo-gym-id', member_id: 'm3', contract_id: 'contract-3', plan_id: 'plan-pt5', status: 'active' as const, start_date: dateStr(-30), end_date: null, monthly_amount: 450, notes: '3 of 5 sessions used', created_at: daysAgo(30), updated_at: daysAgo(3), member: { id: 'm3', name: 'Thomas Brunner', email: 'thomas.brunner@gmail.com' }, plan: { id: 'plan-pt5', name: 'PT 5-Pack', price: 450, color: '#F43F5E' } },
+  { id: 'addon-5', gym_id: 'demo-gym-id', member_id: 'm5', contract_id: 'contract-4', plan_id: 'plan-drinks', status: 'active' as const, start_date: dateStr(-60), end_date: null, monthly_amount: 29, notes: null, created_at: daysAgo(60), updated_at: daysAgo(1), member: { id: 'm5', name: 'Luca Müller', email: 'luca.mueller@gmail.com' }, plan: { id: 'plan-drinks', name: 'Drinks Unlimited', price: 29, color: '#10B981' } },
+  { id: 'addon-6', gym_id: 'demo-gym-id', member_id: 'm6', contract_id: 'contract-5', plan_id: 'plan-sauna', status: 'active' as const, start_date: dateStr(-90), end_date: null, monthly_amount: 25, notes: null, created_at: daysAgo(90), updated_at: daysAgo(1), member: { id: 'm6', name: 'Sofia Keller', email: 'sofia.keller@sunrise.ch' }, plan: { id: 'plan-sauna', name: 'Sauna Access', price: 25, color: '#D97706' } },
+];
+
+// ============================================================
+// MEMBERSHIP FREEZES (Timestop)
+// ============================================================
+
+export const DEMO_MEMBERSHIP_FREEZES = [
+  // Active freeze
+  { id: 'freeze-1', gym_id: 'demo-gym-id', member_id: 'm8', contract_id: 'contract-8', reason: 'injury' as const, reason_detail: 'Knee surgery, 6 weeks rehab', start_date: dateStr(-14), end_date: dateStr(28), original_contract_end: dateStr(48), extended_contract_end: dateStr(90), proof_document_url: null, proof_type: 'medical_certificate', status: 'approved' as const, approved_by: 'Daniel P.', approved_at: daysAgo(15), rejected_reason: null, notes: 'Medical certificate on file', created_at: daysAgo(16), updated_at: daysAgo(14), member: { id: 'm8', name: 'David Steiner', email: 'david.steiner@sunrise.ch', avatar_url: null }, contract: { id: 'contract-8', contract_number: 'PRO-2503-0008' } },
+  // Pending freeze request
+  { id: 'freeze-2', gym_id: 'demo-gym-id', member_id: 'm13', contract_id: 'contract-4', reason: 'military' as const, reason_detail: 'Swiss Army refresher course, 3 weeks', start_date: dateStr(14), end_date: dateStr(35), original_contract_end: null, extended_contract_end: null, proof_document_url: null, proof_type: 'military_order', status: 'pending' as const, approved_by: null, approved_at: null, rejected_reason: null, notes: 'Military order to be submitted', created_at: daysAgo(2), updated_at: daysAgo(2), member: { id: 'm13', name: 'Patrick Wyss', email: 'patrick.wyss@sunrise.ch', avatar_url: null }, contract: { id: 'contract-4', contract_number: 'PRO-2503-0004' } },
+  // Past freeze (ended)
+  { id: 'freeze-3', gym_id: 'demo-gym-id', member_id: 'm4', contract_id: 'contract-3', reason: 'pregnancy' as const, reason_detail: 'Pregnancy from 7th month', start_date: dateStr(-120), end_date: dateStr(-30), original_contract_end: dateStr(-60), extended_contract_end: dateStr(30), proof_document_url: null, proof_type: 'medical_certificate', status: 'ended' as const, approved_by: 'Daniel P.', approved_at: daysAgo(125), rejected_reason: null, notes: 'Everything went well, member active again', created_at: daysAgo(130), updated_at: daysAgo(30), member: { id: 'm4', name: 'Nina Hartmann', email: 'nina.hartmann@sunrise.ch', avatar_url: null }, contract: { id: 'contract-3', contract_number: 'PRO-2503-0003' } },
+];
+
+// ============================================================
+// MEMBER WARNINGS
+// ============================================================
+
+export const DEMO_MEMBER_WARNINGS = [
+  { id: 'warn-1', gym_id: 'demo-gym-id', member_id: 'm11', warning_level: '1' as const, reason: 'Repeatedly not reracking weights', description: 'Despite multiple verbal reminders, the member continues to leave weights and equipment unracked. Written warning issued.', issued_by: 'Marco Bianchi', issued_at: daysAgo(14), expires_at: daysAgo(-76), is_active: true, acknowledged_at: daysAgo(13), created_at: daysAgo(14), updated_at: daysAgo(13), member: { id: 'm11', name: 'Tim Gerber', email: 'tim.gerber@gmail.com', avatar_url: null } },
+  { id: 'warn-2', gym_id: 'demo-gym-id', member_id: 'm24', warning_level: '2' as const, reason: 'Aggressive behavior toward coach', description: 'Member verbally abused Coach Luca Schneider after being corrected on exercise form. Second warning issued.', issued_by: 'Daniel P.', issued_at: daysAgo(7), expires_at: daysAgo(-83), is_active: true, acknowledged_at: null, created_at: daysAgo(7), updated_at: daysAgo(7), member: { id: 'm24', name: 'Dominik Hofmann', email: 'dominik.hofmann@protonmail.com', avatar_url: null } },
+  { id: 'warn-3', gym_id: 'demo-gym-id', member_id: 'm24', warning_level: '1' as const, reason: 'Playing loud music without headphones', description: 'Member repeatedly played music on speakers in the training area.', issued_by: 'Sofia Meier', issued_at: daysAgo(30), expires_at: daysAgo(-60), is_active: true, acknowledged_at: daysAgo(29), created_at: daysAgo(30), updated_at: daysAgo(29), member: { id: 'm24', name: 'Dominik Hofmann', email: 'dominik.hofmann@protonmail.com', avatar_url: null } },
+];
+
+// ============================================================
+// MEMBER BANS
+// ============================================================
+
+export const DEMO_MEMBER_BANS = [
+  { id: 'ban-1', gym_id: 'demo-gym-id', member_id: 'm24', ban_type: 'temporary' as const, reason: 'Escalation after 2nd warning', description: 'Following the second warning for aggressive behavior, a 2-week suspension has been imposed. Any further incident will result in permanent expulsion.', start_date: dateStr(-5), end_date: dateStr(9), issued_by: 'Daniel P.', issued_at: daysAgo(5), is_active: true, lifted_at: null, lifted_by: null, lift_reason: null, created_at: daysAgo(5), updated_at: daysAgo(5), member: { id: 'm24', name: 'Dominik Hofmann', email: 'dominik.hofmann@protonmail.com', avatar_url: null } },
+];
+
+// ============================================================
+// MEMBERSHIP STATS
+// ============================================================
+
+export const DEMO_MEMBERSHIP_STATS = {
+  totalContracts: 12,
+  activeContracts: 9,
+  frozenContracts: 1,
+  cancelledContracts: 2,
+  mrr: 8943,
+  avgContractValue: 83.50,
+};
+
+// ============================================================
+// COACH DETAIL DATA (response times, service index, activity)
+// ============================================================
+
+function weeksAgoLabel(n: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() - n * 7);
+  return `${d.getDate()}.${d.getMonth() + 1}`;
+}
+
+function recentMonthLabels(count: number): string[] {
+  const labels: string[] = [];
+  const now = new Date();
+  for (let i = count - 1; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    labels.push(d.toLocaleString('de-CH', { month: 'short' }));
+  }
+  return labels;
+}
+
+const _months = recentMonthLabels(6);
+
+export const DEMO_COACH_RESPONSE_METRICS: Record<string, CoachResponseMetrics> = {
+  c1: { coachId: 'c1', avgResponseMinutes: 18, medianResponseMinutes: 12, responseRate: 0.97, totalMessagesReceived: 214, totalMessagesReplied: 208, weeklyTrend: [{ week: weeksAgoLabel(7), avgMinutes: 22 }, { week: weeksAgoLabel(6), avgMinutes: 20 }, { week: weeksAgoLabel(5), avgMinutes: 19 }, { week: weeksAgoLabel(4), avgMinutes: 17 }, { week: weeksAgoLabel(3), avgMinutes: 16 }, { week: weeksAgoLabel(2), avgMinutes: 18 }, { week: weeksAgoLabel(1), avgMinutes: 15 }, { week: weeksAgoLabel(0), avgMinutes: 14 }] },
+  c2: { coachId: 'c2', avgResponseMinutes: 12, medianResponseMinutes: 8, responseRate: 0.99, totalMessagesReceived: 312, totalMessagesReplied: 309, weeklyTrend: [{ week: weeksAgoLabel(7), avgMinutes: 15 }, { week: weeksAgoLabel(6), avgMinutes: 13 }, { week: weeksAgoLabel(5), avgMinutes: 11 }, { week: weeksAgoLabel(4), avgMinutes: 12 }, { week: weeksAgoLabel(3), avgMinutes: 10 }, { week: weeksAgoLabel(2), avgMinutes: 11 }, { week: weeksAgoLabel(1), avgMinutes: 9 }, { week: weeksAgoLabel(0), avgMinutes: 8 }] },
+  c3: { coachId: 'c3', avgResponseMinutes: 85, medianResponseMinutes: 62, responseRate: 0.78, totalMessagesReceived: 156, totalMessagesReplied: 122, weeklyTrend: [{ week: weeksAgoLabel(7), avgMinutes: 45 }, { week: weeksAgoLabel(6), avgMinutes: 55 }, { week: weeksAgoLabel(5), avgMinutes: 68 }, { week: weeksAgoLabel(4), avgMinutes: 72 }, { week: weeksAgoLabel(3), avgMinutes: 90 }, { week: weeksAgoLabel(2), avgMinutes: 95 }, { week: weeksAgoLabel(1), avgMinutes: 105 }, { week: weeksAgoLabel(0), avgMinutes: 112 }] },
+  c4: { coachId: 'c4', avgResponseMinutes: 25, medianResponseMinutes: 18, responseRate: 0.94, totalMessagesReceived: 198, totalMessagesReplied: 186, weeklyTrend: [{ week: weeksAgoLabel(7), avgMinutes: 30 }, { week: weeksAgoLabel(6), avgMinutes: 28 }, { week: weeksAgoLabel(5), avgMinutes: 26 }, { week: weeksAgoLabel(4), avgMinutes: 24 }, { week: weeksAgoLabel(3), avgMinutes: 22 }, { week: weeksAgoLabel(2), avgMinutes: 25 }, { week: weeksAgoLabel(1), avgMinutes: 23 }, { week: weeksAgoLabel(0), avgMinutes: 20 }] },
+  c5: { coachId: 'c5', avgResponseMinutes: 45, medianResponseMinutes: 35, responseRate: 0.82, totalMessagesReceived: 134, totalMessagesReplied: 110, weeklyTrend: [{ week: weeksAgoLabel(7), avgMinutes: 50 }, { week: weeksAgoLabel(6), avgMinutes: 48 }, { week: weeksAgoLabel(5), avgMinutes: 42 }, { week: weeksAgoLabel(4), avgMinutes: 44 }, { week: weeksAgoLabel(3), avgMinutes: 40 }, { week: weeksAgoLabel(2), avgMinutes: 46 }, { week: weeksAgoLabel(1), avgMinutes: 43 }, { week: weeksAgoLabel(0), avgMinutes: 38 }] },
+  c6: { coachId: 'c6', avgResponseMinutes: 0, medianResponseMinutes: 0, responseRate: 0, totalMessagesReceived: 0, totalMessagesReplied: 0, weeklyTrend: [] },
+  c7: { coachId: 'c7', avgResponseMinutes: 15, medianResponseMinutes: 10, responseRate: 0.98, totalMessagesReceived: 287, totalMessagesReplied: 281, weeklyTrend: [{ week: weeksAgoLabel(7), avgMinutes: 18 }, { week: weeksAgoLabel(6), avgMinutes: 16 }, { week: weeksAgoLabel(5), avgMinutes: 15 }, { week: weeksAgoLabel(4), avgMinutes: 14 }, { week: weeksAgoLabel(3), avgMinutes: 13 }, { week: weeksAgoLabel(2), avgMinutes: 15 }, { week: weeksAgoLabel(1), avgMinutes: 12 }, { week: weeksAgoLabel(0), avgMinutes: 11 }] },
+};
+
+export const DEMO_COACH_SERVICE_INDEX: Record<string, CoachServiceIndex> = {
+  c1: {
+    coachId: 'c1', overallScore: 92, npsScore: 78, clientRetentionRate: 94, avgClientTenureMonths: 11,
+    monthlyScores: [{ month: _months[0], score: 88 }, { month: _months[1], score: 89 }, { month: _months[2], score: 91 }, { month: _months[3], score: 90 }, { month: _months[4], score: 93 }, { month: _months[5], score: 92 }],
+    clients: [
+      { clientId: 'cc-1', clientName: 'Luca Müller', email: 'luca.mueller@gmail.com', satisfactionScore: 9, retentionMonths: 6, sessionsCompleted: 48, sessionsNoShow: 1, progressRating: 5, lastFeedback: 'Bester Trainer, den ich je hatte!', lastMessageAt: hoursAgo(3), avgResponseMinutes: 12, trend: 'improving' },
+      { clientId: 'cc-2', clientName: 'Laura Zimmermann', email: 'laura.zimmermann@bluewin.ch', satisfactionScore: 10, retentionMonths: 13, sessionsCompleted: 104, sessionsNoShow: 2, progressRating: 5, lastFeedback: 'Marco pusht mich immer aufs nächste Level.', lastMessageAt: hoursAgo(8), avgResponseMinutes: 15, trend: 'stable' },
+      { clientId: 'cc-3', clientName: 'Thomas Brunner', email: 'thomas.brunner@gmail.com', satisfactionScore: 8, retentionMonths: 16, sessionsCompleted: 128, sessionsNoShow: 5, progressRating: 4, lastFeedback: null, lastMessageAt: daysAgo(1), avgResponseMinutes: 22, trend: 'stable' },
+    ],
+  },
+  c2: {
+    coachId: 'c2', overallScore: 96, npsScore: 85, clientRetentionRate: 97, avgClientTenureMonths: 9,
+    monthlyScores: [{ month: _months[0], score: 93 }, { month: _months[1], score: 94 }, { month: _months[2], score: 95 }, { month: _months[3], score: 96 }, { month: _months[4], score: 95 }, { month: _months[5], score: 96 }],
+    clients: [
+      { clientId: 'cc-4', clientName: 'Emma Schneider', email: 'emma.schneider@outlook.com', satisfactionScore: 10, retentionMonths: 12, sessionsCompleted: 96, sessionsNoShow: 0, progressRating: 5, lastFeedback: 'Sofia versteht genau was ich brauche.', lastMessageAt: hoursAgo(2), avgResponseMinutes: 8, trend: 'improving' },
+      { clientId: 'cc-5', clientName: 'Lea Bachmann', email: 'lea.bachmann@protonmail.com', satisfactionScore: 9, retentionMonths: 5, sessionsCompleted: 40, sessionsNoShow: 1, progressRating: 5, lastFeedback: 'Ernährungscoaching ist top!', lastMessageAt: hoursAgo(1), avgResponseMinutes: 10, trend: 'improving' },
+      { clientId: 'cc-6', clientName: 'Céline Meier', email: 'celine.meier@gmail.com', satisfactionScore: 9, retentionMonths: 5, sessionsCompleted: 38, sessionsNoShow: 2, progressRating: 4, lastFeedback: null, lastMessageAt: hoursAgo(6), avgResponseMinutes: 14, trend: 'stable' },
+    ],
+  },
+  c3: {
+    coachId: 'c3', overallScore: 61, npsScore: 22, clientRetentionRate: 68, avgClientTenureMonths: 5,
+    monthlyScores: [{ month: _months[0], score: 75 }, { month: _months[1], score: 72 }, { month: _months[2], score: 68 }, { month: _months[3], score: 65 }, { month: _months[4], score: 63 }, { month: _months[5], score: 61 }],
+    clients: [
+      { clientId: 'lc-1', clientName: 'Fabian Kuster', email: 'fabian.kuster@gmail.com', satisfactionScore: 6, retentionMonths: 8, sessionsCompleted: 52, sessionsNoShow: 8, progressRating: 3, lastFeedback: 'Antwortet oft erst nach Stunden...', lastMessageAt: daysAgo(2), avgResponseMinutes: 95, trend: 'declining' },
+      { clientId: 'lc-2', clientName: 'Sandra Widmer', email: 'sandra.widmer@bluewin.ch', satisfactionScore: 7, retentionMonths: 4, sessionsCompleted: 28, sessionsNoShow: 3, progressRating: 3, lastFeedback: 'Training ist gut, Kommunikation könnte besser sein.', lastMessageAt: daysAgo(3), avgResponseMinutes: 78, trend: 'declining' },
+      { clientId: 'lc-3', clientName: 'Dominik Erb', email: 'dominik.erb@sunrise.ch', satisfactionScore: 5, retentionMonths: 3, sessionsCompleted: 18, sessionsNoShow: 5, progressRating: 2, lastFeedback: 'Zu viele No-Shows, fühle mich nicht ernst genommen.', lastMessageAt: daysAgo(5), avgResponseMinutes: 120, trend: 'declining' },
+    ],
+  },
+  c4: {
+    coachId: 'c4', overallScore: 89, npsScore: 72, clientRetentionRate: 91, avgClientTenureMonths: 8,
+    monthlyScores: [{ month: _months[0], score: 85 }, { month: _months[1], score: 86 }, { month: _months[2], score: 87 }, { month: _months[3], score: 88 }, { month: _months[4], score: 89 }, { month: _months[5], score: 89 }],
+    clients: [
+      { clientId: 'cc-7', clientName: 'Sofia Keller', email: 'sofia.keller@sunrise.ch', satisfactionScore: 9, retentionMonths: 4, sessionsCompleted: 32, sessionsNoShow: 0, progressRating: 5, lastFeedback: 'Elena ist fantastisch, sehr einfühlsam.', lastMessageAt: hoursAgo(5), avgResponseMinutes: 20, trend: 'improving' },
+      { clientId: 'cc-8', clientName: 'Nina Hartmann', email: 'nina.hartmann@sunrise.ch', satisfactionScore: 8, retentionMonths: 7, sessionsCompleted: 52, sessionsNoShow: 3, progressRating: 4, lastFeedback: null, lastMessageAt: daysAgo(2), avgResponseMinutes: 28, trend: 'stable' },
+      { clientId: 'cc-9', clientName: 'Julia Frei', email: 'julia.frei@protonmail.com', satisfactionScore: 9, retentionMonths: 6, sessionsCompleted: 44, sessionsNoShow: 1, progressRating: 4, lastFeedback: 'Meine Mobility hat sich unglaublich verbessert.', lastMessageAt: hoursAgo(10), avgResponseMinutes: 25, trend: 'improving' },
+    ],
+  },
+  c5: {
+    coachId: 'c5', overallScore: 74, npsScore: 45, clientRetentionRate: 79, avgClientTenureMonths: 6,
+    monthlyScores: [{ month: _months[0], score: 70 }, { month: _months[1], score: 71 }, { month: _months[2], score: 72 }, { month: _months[3], score: 73 }, { month: _months[4], score: 75 }, { month: _months[5], score: 74 }],
+    clients: [
+      { clientId: 'nk-1', clientName: 'Adrian Blum', email: 'adrian.blum@gmail.com', satisfactionScore: 8, retentionMonths: 10, sessionsCompleted: 72, sessionsNoShow: 4, progressRating: 4, lastFeedback: 'Guter Trainer, aber manchmal schwer erreichbar.', lastMessageAt: daysAgo(1), avgResponseMinutes: 40, trend: 'stable' },
+      { clientId: 'nk-2', clientName: 'Ramon Schweizer', email: 'ramon.schweizer@protonmail.com', satisfactionScore: 7, retentionMonths: 5, sessionsCompleted: 36, sessionsNoShow: 2, progressRating: 3, lastFeedback: null, lastMessageAt: daysAgo(2), avgResponseMinutes: 52, trend: 'stable' },
+    ],
+  },
+  c6: {
+    coachId: 'c6', overallScore: 0, npsScore: 0, clientRetentionRate: 0, avgClientTenureMonths: 0,
+    monthlyScores: [],
+    clients: [],
+  },
+  c7: {
+    coachId: 'c7', overallScore: 94, npsScore: 82, clientRetentionRate: 96, avgClientTenureMonths: 7,
+    monthlyScores: [{ month: _months[0], score: 90 }, { month: _months[1], score: 91 }, { month: _months[2], score: 92 }, { month: _months[3], score: 93 }, { month: _months[4], score: 94 }, { month: _months[5], score: 94 }],
+    clients: [
+      { clientId: 'cc-10', clientName: 'Raphael Ammann', email: 'raphael.ammann@bluewin.ch', satisfactionScore: 10, retentionMonths: 11, sessionsCompleted: 88, sessionsNoShow: 1, progressRating: 5, lastFeedback: 'Daniele ist der Grund warum ich noch trainiere.', lastMessageAt: hoursAgo(2), avgResponseMinutes: 8, trend: 'improving' },
+      { clientId: 'cc-11', clientName: 'Fabienne Gerber', email: 'fabienne.gerber@gmail.com', satisfactionScore: 10, retentionMonths: 9, sessionsCompleted: 72, sessionsNoShow: 0, progressRating: 5, lastFeedback: 'Bester Coach in Zürich, Punkt.', lastMessageAt: hoursAgo(1), avgResponseMinutes: 6, trend: 'improving' },
+      { clientId: 'cc-12', clientName: 'Marco Wyss', email: 'marco.wyss@protonmail.com', satisfactionScore: 9, retentionMonths: 8, sessionsCompleted: 64, sessionsNoShow: 2, progressRating: 5, lastFeedback: 'Meine Kraftwerte sind explodiert.', lastMessageAt: hoursAgo(4), avgResponseMinutes: 12, trend: 'improving' },
+      { clientId: 'cc-13', clientName: 'Janine Bühler', email: 'janine.buehler@sunrise.ch', satisfactionScore: 9, retentionMonths: 6, sessionsCompleted: 48, sessionsNoShow: 1, progressRating: 4, lastFeedback: 'Sehr professionell und motivierend.', lastMessageAt: hoursAgo(6), avgResponseMinutes: 15, trend: 'stable' },
+      { clientId: 'cc-14', clientName: 'Patrick Lehmann', email: 'patrick.lehmann@outlook.com', satisfactionScore: 8, retentionMonths: 5, sessionsCompleted: 38, sessionsNoShow: 3, progressRating: 4, lastFeedback: null, lastMessageAt: daysAgo(1), avgResponseMinutes: 18, trend: 'stable' },
+      { clientId: 'cc-15', clientName: 'Selina Roth', email: 'selina.roth@gmail.com', satisfactionScore: 10, retentionMonths: 4, sessionsCompleted: 34, sessionsNoShow: 0, progressRating: 5, lastFeedback: 'Ernährungsberatung hat alles verändert!', lastMessageAt: hoursAgo(3), avgResponseMinutes: 10, trend: 'improving' },
+      { clientId: 'cc-16', clientName: 'Tim Baumann', email: 'tim.baumann@bluewin.ch', satisfactionScore: 8, retentionMonths: 3, sessionsCompleted: 24, sessionsNoShow: 2, progressRating: 4, lastFeedback: null, lastMessageAt: daysAgo(2), avgResponseMinutes: 20, trend: 'stable' },
+      { clientId: 'cc-17', clientName: 'Noemi Sutter', email: 'noemi.sutter@gmail.com', satisfactionScore: 9, retentionMonths: 3, sessionsCompleted: 22, sessionsNoShow: 0, progressRating: 5, lastFeedback: 'Fühle mich so gut wie nie!', lastMessageAt: hoursAgo(5), avgResponseMinutes: 14, trend: 'improving' },
+      { clientId: 'cc-18', clientName: 'Nico Walther', email: 'nico.walther@protonmail.com', satisfactionScore: 9, retentionMonths: 2, sessionsCompleted: 16, sessionsNoShow: 1, progressRating: 4, lastFeedback: 'Top Coaching, sehr individuell.', lastMessageAt: hoursAgo(8), avgResponseMinutes: 16, trend: 'improving' },
+      { clientId: 'cc-19', clientName: 'Alina Fehr', email: 'alina.fehr@sunrise.ch', satisfactionScore: 10, retentionMonths: 2, sessionsCompleted: 14, sessionsNoShow: 0, progressRating: 5, lastFeedback: 'Daniele nimmt sich wirklich Zeit.', lastMessageAt: hoursAgo(1), avgResponseMinutes: 9, trend: 'improving' },
+      { clientId: 'cc-20', clientName: 'Yannick Moser', email: 'yannick.moser@outlook.com', satisfactionScore: 7, retentionMonths: 1, sessionsCompleted: 8, sessionsNoShow: 2, progressRating: 3, lastFeedback: null, lastMessageAt: daysAgo(3), avgResponseMinutes: 22, trend: 'stable' },
+      { clientId: 'cc-21', clientName: 'Lena Bosshard', email: 'lena.bosshard@gmail.com', satisfactionScore: 9, retentionMonths: 1, sessionsCompleted: 7, sessionsNoShow: 0, progressRating: 4, lastFeedback: 'Bin begeistert, endlich ein Coach der zuhört.', lastMessageAt: hoursAgo(4), avgResponseMinutes: 11, trend: 'improving' },
+      { clientId: 'cc-22', clientName: 'Sven Dietrich', email: 'sven.dietrich@bluewin.ch', satisfactionScore: 8, retentionMonths: 1, sessionsCompleted: 5, sessionsNoShow: 1, progressRating: 3, lastFeedback: null, lastMessageAt: daysAgo(1), avgResponseMinutes: 19, trend: 'stable' },
+      { clientId: 'cc-23', clientName: 'Chiara Volpe', email: 'chiara.volpe@gmail.com', satisfactionScore: 10, retentionMonths: 0, sessionsCompleted: 4, sessionsNoShow: 0, progressRating: 5, lastFeedback: 'Wow, so ein professionelles Onboarding!', lastMessageAt: hoursAgo(2), avgResponseMinutes: 7, trend: 'improving' },
+    ],
+  },
+};
+
+export const DEMO_COACH_ACTIVITY: Record<string, CoachActivityEvent[]> = {
+  c1: [
+    { id: 'act-1a', type: 'session_completed', description: 'Session mit Luca Müller abgeschlossen', timestamp: hoursAgo(3), relatedClientName: 'Luca Müller' },
+    { id: 'act-1b', type: 'message_sent', description: 'Trainingsfeedback an Laura Zimmermann gesendet', timestamp: hoursAgo(5), relatedClientName: 'Laura Zimmermann' },
+    { id: 'act-1c', type: 'workout_created', description: 'Neues Workout "EMOM Destroyer" erstellt', timestamp: hoursAgo(8) },
+    { id: 'act-1d', type: 'session_completed', description: 'Session mit Thomas Brunner abgeschlossen', timestamp: daysAgo(1), relatedClientName: 'Thomas Brunner' },
+    { id: 'act-1e', type: 'feedback_received', description: 'Neue 5-Sterne Bewertung von Laura Zimmermann', timestamp: daysAgo(1), relatedClientName: 'Laura Zimmermann' },
+    { id: 'act-1f', type: 'program_assigned', description: 'Programm "12-Week Strength" an neuen Kunden zugewiesen', timestamp: daysAgo(2) },
+  ],
+  c2: [
+    { id: 'act-2a', type: 'message_sent', description: 'Meal Plan an Emma Schneider gesendet', timestamp: hoursAgo(1), relatedClientName: 'Emma Schneider' },
+    { id: 'act-2b', type: 'session_completed', description: 'Session mit Lea Bachmann abgeschlossen', timestamp: hoursAgo(4), relatedClientName: 'Lea Bachmann' },
+    { id: 'act-2c', type: 'client_onboarded', description: 'Neue Kundin Céline Meier ongeboardet', timestamp: hoursAgo(6), relatedClientName: 'Céline Meier' },
+    { id: 'act-2d', type: 'feedback_received', description: 'Neue 5-Sterne Bewertung von Emma Schneider', timestamp: daysAgo(1), relatedClientName: 'Emma Schneider' },
+    { id: 'act-2e', type: 'workout_created', description: 'Neues Workout "Core Blaster" erstellt', timestamp: daysAgo(1) },
+    { id: 'act-2f', type: 'session_completed', description: 'Gruppensession "Body Transform" abgeschlossen', timestamp: daysAgo(2) },
+  ],
+  c3: [
+    { id: 'act-3a', type: 'no_show', description: 'Dominik Erb nicht zur Session erschienen', timestamp: daysAgo(1), relatedClientName: 'Dominik Erb' },
+    { id: 'act-3b', type: 'session_completed', description: 'Session mit Sandra Widmer abgeschlossen', timestamp: daysAgo(2), relatedClientName: 'Sandra Widmer' },
+    { id: 'act-3c', type: 'no_show', description: 'Fabian Kuster nicht zur Session erschienen', timestamp: daysAgo(3), relatedClientName: 'Fabian Kuster' },
+    { id: 'act-3d', type: 'message_sent', description: 'Antwort an Fabian Kuster (nach 2h 15min)', timestamp: daysAgo(3), relatedClientName: 'Fabian Kuster' },
+    { id: 'act-3e', type: 'session_completed', description: 'Session mit Dominik Erb abgeschlossen', timestamp: daysAgo(5), relatedClientName: 'Dominik Erb' },
+  ],
+  c4: [
+    { id: 'act-4a', type: 'session_completed', description: 'Yoga-Session mit Sofia Keller abgeschlossen', timestamp: hoursAgo(5), relatedClientName: 'Sofia Keller' },
+    { id: 'act-4b', type: 'message_sent', description: 'Mobility-Tipps an Julia Frei gesendet', timestamp: hoursAgo(8), relatedClientName: 'Julia Frei' },
+    { id: 'act-4c', type: 'workout_created', description: 'Neues Workout "Morning Flow" erstellt', timestamp: daysAgo(1) },
+    { id: 'act-4d', type: 'session_completed', description: 'Pilates-Gruppensession abgeschlossen', timestamp: daysAgo(1) },
+    { id: 'act-4e', type: 'feedback_received', description: 'Neue Bewertung von Sofia Keller', timestamp: daysAgo(2), relatedClientName: 'Sofia Keller' },
+  ],
+  c5: [
+    { id: 'act-5a', type: 'session_completed', description: 'Session mit Adrian Blum abgeschlossen', timestamp: daysAgo(1), relatedClientName: 'Adrian Blum' },
+    { id: 'act-5b', type: 'message_sent', description: 'Trainingsplan an Ramon Schweizer gesendet', timestamp: daysAgo(2), relatedClientName: 'Ramon Schweizer' },
+    { id: 'act-5c', type: 'session_completed', description: 'Session mit Ramon Schweizer abgeschlossen', timestamp: daysAgo(3), relatedClientName: 'Ramon Schweizer' },
+  ],
+  c6: [],
+  c7: [
+    { id: 'act-7a', type: 'session_completed', description: 'Session mit Fabienne Gerber abgeschlossen', timestamp: hoursAgo(1), relatedClientName: 'Fabienne Gerber' },
+    { id: 'act-7b', type: 'message_sent', description: 'Fortschrittsbericht an Raphael Ammann gesendet', timestamp: hoursAgo(2), relatedClientName: 'Raphael Ammann' },
+    { id: 'act-7c', type: 'client_onboarded', description: 'Neue Kundin Chiara Volpe ongeboardet', timestamp: hoursAgo(4), relatedClientName: 'Chiara Volpe' },
+    { id: 'act-7d', type: 'workout_created', description: 'Neues Workout "Recovery & Mobility Flow" erstellt', timestamp: hoursAgo(6) },
+    { id: 'act-7e', type: 'session_completed', description: 'Session mit Marco Wyss abgeschlossen', timestamp: hoursAgo(8), relatedClientName: 'Marco Wyss' },
+    { id: 'act-7f', type: 'feedback_received', description: 'Neue 5-Sterne Bewertung von Alina Fehr', timestamp: daysAgo(1), relatedClientName: 'Alina Fehr' },
+    { id: 'act-7g', type: 'program_assigned', description: 'Programm "Comeback Program" an Sven Dietrich zugewiesen', timestamp: daysAgo(1), relatedClientName: 'Sven Dietrich' },
+    { id: 'act-7h', type: 'message_sent', description: 'Ernährungstipps an Selina Roth gesendet', timestamp: daysAgo(1), relatedClientName: 'Selina Roth' },
+    { id: 'act-7i', type: 'session_completed', description: 'Session mit Noemi Sutter abgeschlossen', timestamp: daysAgo(2), relatedClientName: 'Noemi Sutter' },
+    { id: 'act-7j', type: 'feedback_received', description: 'Neue Bewertung von Lena Bosshard', timestamp: daysAgo(2), relatedClientName: 'Lena Bosshard' },
+  ],
+};

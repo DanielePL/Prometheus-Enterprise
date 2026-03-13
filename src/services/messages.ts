@@ -48,6 +48,11 @@ export const messagesService = {
 
   // Get a single message by ID
   async getById(id: string) {
+    if (isDemoMode()) {
+      const msg = DEMO_MESSAGES.find(m => m.id === id);
+      return msg || null;
+    }
+
     const { data, error } = await supabase
       .from('messages')
       .select(`
@@ -64,6 +69,24 @@ export const messagesService = {
 
   // Send a message
   async send(message: MessageInsert) {
+    if (isDemoMode()) {
+      const newMsg = {
+        id: `msg-demo-${Date.now()}`,
+        gym_id: message.gym_id || 'demo-gym-id',
+        sender_id: message.sender_id || 'staff-1',
+        recipient_id: message.recipient_id || null,
+        subject: message.subject,
+        content: message.content,
+        is_broadcast: message.is_broadcast || false,
+        is_read: false,
+        read_at: null,
+        created_at: new Date().toISOString(),
+        sender: DEMO_STAFF.find(s => s.id === (message.sender_id || 'staff-1')) || DEMO_STAFF[0],
+      };
+      DEMO_MESSAGES.unshift(newMsg as typeof DEMO_MESSAGES[0]);
+      return newMsg;
+    }
+
     const { data, error } = await supabase
       .from('messages')
       .insert(message)
@@ -76,6 +99,24 @@ export const messagesService = {
 
   // Send a broadcast message to all team members
   async sendBroadcast(gymId: string, senderId: string, subject: string, content: string) {
+    if (isDemoMode()) {
+      const newMsg = {
+        id: `msg-demo-${Date.now()}`,
+        gym_id: 'demo-gym-id',
+        sender_id: senderId,
+        recipient_id: null,
+        subject,
+        content,
+        is_broadcast: true,
+        is_read: true,
+        read_at: null,
+        created_at: new Date().toISOString(),
+        sender: DEMO_STAFF.find(s => s.id === senderId) || DEMO_STAFF[0],
+      };
+      DEMO_MESSAGES.unshift(newMsg as typeof DEMO_MESSAGES[0]);
+      return newMsg;
+    }
+
     const { data, error } = await supabase
       .from('messages')
       .insert({
@@ -94,6 +135,15 @@ export const messagesService = {
 
   // Mark message as read
   async markAsRead(id: string) {
+    if (isDemoMode()) {
+      const msg = DEMO_MESSAGES.find(m => m.id === id);
+      if (msg) {
+        msg.is_read = true;
+        msg.read_at = new Date().toISOString();
+      }
+      return msg || null;
+    }
+
     const { data, error } = await supabase
       .from('messages')
       .update({
@@ -110,6 +160,16 @@ export const messagesService = {
 
   // Mark all messages as read
   async markAllAsRead(gymId: string, userId: string) {
+    if (isDemoMode()) {
+      DEMO_MESSAGES.forEach(m => {
+        if ((m.recipient_id === 'staff-1' || m.is_broadcast) && !m.is_read) {
+          m.is_read = true;
+          m.read_at = new Date().toISOString();
+        }
+      });
+      return;
+    }
+
     const { error } = await supabase
       .from('messages')
       .update({
@@ -125,6 +185,12 @@ export const messagesService = {
 
   // Delete a message
   async delete(id: string) {
+    if (isDemoMode()) {
+      const idx = DEMO_MESSAGES.findIndex(m => m.id === id);
+      if (idx !== -1) DEMO_MESSAGES.splice(idx, 1);
+      return;
+    }
+
     const { error } = await supabase.from('messages').delete().eq('id', id);
     if (error) throw error;
   },

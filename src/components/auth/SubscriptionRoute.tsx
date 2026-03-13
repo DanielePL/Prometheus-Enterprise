@@ -10,12 +10,12 @@ interface SubscriptionRouteProps {
 }
 
 export default function SubscriptionRoute({ children }: SubscriptionRouteProps) {
-  const { loading: authLoading, isDemoMode } = useAuth();
+  const { loading: authLoading, isDemoMode, user } = useAuth();
   const { subscription, loading: subLoading, isActive } = useSubscription();
   const navigate = useNavigate();
 
-  // Demo mode bypasses subscription checks
-  if (isDemoMode) {
+  // Demo mode or internal team accounts bypass subscription checks
+  if (isDemoMode || user?.email?.endsWith('@prometheus.coach')) {
     return <>{children}</>;
   }
 

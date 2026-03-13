@@ -1,11 +1,15 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { format, parseISO, isToday, isYesterday } from "date-fns";
+import { enUS as locale } from "date-fns/locale";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,22 +33,40 @@ import {
   ToggleRight,
   Link2,
   Send,
+  Plus,
+  Megaphone,
+  Mail,
+  MailOpen,
+  Search,
+  ArrowLeft,
+  Clock,
+  CheckCheck,
+  Reply,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { coachesService } from "@/services/coaches";
 import { coachIntegrationService } from "@/services/coachIntegration";
+import { messagesService } from "@/services/messages";
 import CoachDialog, { CoachFormData } from "@/components/coaches/CoachDialog";
 import DeleteCoachDialog from "@/components/coaches/DeleteCoachDialog";
 import CoachLinkDialog from "@/components/coaches/CoachLinkDialog";
 import CoachIntegrationCard from "@/components/coaches/CoachIntegrationCard";
 import CoachDataPanel from "@/components/coaches/CoachDataPanel";
 import CoachInviteDialog from "@/components/coaches/CoachInviteDialog";
+import CoachCalendar from "@/components/coaches/CoachCalendar";
+import CoachDetailView from "@/components/coaches/CoachDetailView";
+import MessageComposer from "@/components/inbox/MessageComposer";
 import { useSubscription } from "@/contexts/SubscriptionContext";
-import type { Coach, CoachIntegrationRow } from "@/types/database";
+import type { Coach, CoachIntegrationRow, Message } from "@/types/database";
+
+interface MessageWithSender extends Message {
+  sender?: { id: string; full_name: string | null; avatar_url: string | null; email: string } | null;
+  recipient?: { id: string; full_name: string | null; avatar_url: string | null; email: string } | null;
+}
 
 const CoachManagement = () => {
-  const { gym } = useAuth();
+  const { gym, user } = useAuth();
   const { hasFeature, staffLimit } = useSubscription();
   const queryClient = useQueryClient();
   const [coachDialogOpen, setCoachDialogOpen] = useState(false);
@@ -55,6 +77,11 @@ const CoachManagement = () => {
   const [expandedCoach, setExpandedCoach] = useState<string | null>(null);
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const [invitingCoach, setInvitingCoach] = useState<Coach | null>(null);
+  const [composerOpen, setComposerOpen] = useState(false);
+  const [composerReplyTo, setComposerReplyTo] = useState<MessageWithSender | null>(null);
+  const [composerPresetBroadcast, setComposerPresetBroadcast] = useState(false);
+  const [selectedMessage, setSelectedMessage] = useState<MessageWithSender | null>(null);
+  const [commSearch, setCommSearch] = useState("");
 
   // Fetch coaches
   const { data: coaches = [], isLoading } = useQuery({
@@ -69,6 +96,120 @@ const CoachManagement = () => {
     queryFn: () => (gym?.id ? coachIntegrationService.getIntegrations(gym.id) : Promise.resolve([])),
     enabled: !!gym?.id && hasFeature('coachIntegration'),
   });
+
+  // Fetch messages for communication tab
+  const { data: inboxMessages = [] } = useQuery({
+    queryKey: ["messages", "inbox", gym?.id, user?.id],
+    queryFn: () => (gym && user ? messagesService.getInbox(gym.id, user.id) : []),
+    enabled: !!gym?.id && !!user?.id,
+  });
+
+  const { data: sentMessages = [] } = useQuery({
+    queryKey: ["messages", "sent", gym?.id, user?.id],
+    queryFn: () => (gym && user ? messagesService.getSent(gym.id, user.id) : []),
+    enabled: !!gym?.id && !!user?.id,
+  });
+
+  const { data: staff = [] } = useQuery({
+    queryKey: ["staff", gym?.id],
+    queryFn: () => (gym ? messagesService.getStaffMembers(gym.id) : []),
+    enabled: !!gym?.id,
+  });
+
+  // Mark as read mutation
+  const markReadMutation = useMutation({
+    mutationFn: messagesService.markAsRead,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["messages"] }),
+  });
+
+  // Send message mutation
+  const sendMutation = useMutation({
+    mutationFn: messagesService.send,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["messages"] });
+      setComposerOpen(false);
+      setComposerReplyTo(null);
+      toast.success("Message sent");
+    },
+  });
+
+  // Send broadcast mutation
+  const broadcastMutation = useMutation({
+    mutationFn: ({ subject, content }: { subject: string; content: string }) =>
+      gym && user ? messagesService.sendBroadcast(gym.id, user.id, subject, content) : Promise.reject(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["messages"] });
+      setComposerOpen(false);
+      toast.success("Broadcast sent to team");
+    },
+  });
+
+  // Delete message mutation
+  const deleteMessageMutation = useMutation({
+    mutationFn: messagesService.delete,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["messages"] });
+      setSelectedMessage(null);
+      toast.success("Message deleted");
+    },
+  });
+
+  // Combined & filtered messages for communication tab
+  const allMessages = useMemo(() => {
+    const combined = [...inboxMessages, ...sentMessages];
+    // Deduplicate by id
+    const seen = new Set<string>();
+    const unique = combined.filter((m) => {
+      if (seen.has(m.id)) return false;
+      seen.add(m.id);
+      return true;
+    });
+    unique.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    if (!commSearch) return unique;
+    const q = commSearch.toLowerCase();
+    return unique.filter(
+      (m) =>
+        m.subject.toLowerCase().includes(q) ||
+        m.content.toLowerCase().includes(q) ||
+        m.sender?.full_name?.toLowerCase().includes(q) ||
+        m.recipient?.full_name?.toLowerCase().includes(q)
+    );
+  }, [inboxMessages, sentMessages, commSearch]);
+
+  const broadcasts = useMemo(() => allMessages.filter((m) => m.is_broadcast), [allMessages]);
+  const directMessages = useMemo(() => allMessages.filter((m) => !m.is_broadcast), [allMessages]);
+  const unreadCount = useMemo(() => inboxMessages.filter((m) => !m.is_read).length, [inboxMessages]);
+
+  const formatMessageDate = (dateStr: string) => {
+    const date = parseISO(dateStr);
+    if (isToday(date)) return format(date, "HH:mm");
+    if (isYesterday(date)) return "Yesterday";
+    return format(date, "MMM d", { locale });
+  };
+
+  const getInitials = (name: string | null | undefined) => {
+    if (!name) return "?";
+    return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
+  };
+
+  const handleSelectMessage = async (message: MessageWithSender) => {
+    setSelectedMessage(message);
+    if (!message.is_read && message.recipient_id === user?.id) {
+      await markReadMutation.mutateAsync(message.id);
+    }
+  };
+
+  const openComposer = (broadcast = false) => {
+    setComposerReplyTo(null);
+    setComposerPresetBroadcast(broadcast);
+    setComposerOpen(true);
+  };
+
+  const handleReplyMessage = (message: MessageWithSender) => {
+    setComposerReplyTo(message);
+    setComposerPresetBroadcast(false);
+    setComposerOpen(true);
+  };
 
   const getIntegration = (coachId: string): CoachIntegrationRow | null => {
     return integrations.find((i: CoachIntegrationRow) => i.coach_id === coachId) || null;
@@ -325,7 +466,12 @@ const CoachManagement = () => {
         </TabsList>
 
         <TabsContent value="roster" className="space-y-4">
-          {coaches.length === 0 ? (
+          {expandedCoach ? (
+            <CoachDetailView
+              coach={coaches.find((c: Coach) => c.id === expandedCoach)!}
+              onBack={() => setExpandedCoach(null)}
+            />
+          ) : coaches.length === 0 ? (
             <Card className="glass-card">
               <CardContent className="p-8 text-center">
                 <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
@@ -344,9 +490,10 @@ const CoachManagement = () => {
               {coaches.map((coach: Coach) => (
                 <Card
                   key={coach.id}
-                  className={`glass-card hover:scale-[1.02] transition-transform ${
+                  className={`glass-card hover:scale-[1.02] transition-transform cursor-pointer ${
                     !coach.is_active ? "opacity-60" : ""
                   }`}
+                  onClick={() => setExpandedCoach(coach.id)}
                 >
                   <CardContent className="p-4">
                     <div className="flex items-start gap-4">
@@ -379,7 +526,7 @@ const CoachManagement = () => {
                             )}
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon">
+                                <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}>
                                   <MoreHorizontal className="h-4 w-4" />
                                 </Button>
                               </DropdownMenuTrigger>
@@ -529,33 +676,305 @@ const CoachManagement = () => {
         </TabsContent>
 
         <TabsContent value="schedule">
-          <Card className="glass-card">
-            <CardContent className="p-8 text-center">
-              <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold">Calendar View</h3>
-              <p className="text-muted-foreground">Calendar integration coming soon</p>
-            </CardContent>
-          </Card>
+          <CoachCalendar coaches={coaches} />
         </TabsContent>
 
-        <TabsContent value="communication">
-          <Card className="glass-card">
-            <CardHeader>
-              <CardTitle>Team Communication</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid md:grid-cols-2 gap-4">
-                <Button variant="outline" className="h-20 flex-col gap-2">
-                  <MessageSquare className="h-6 w-6" />
-                  <span>Direct Message</span>
-                </Button>
-                <Button variant="outline" className="h-20 flex-col gap-2">
-                  <Users className="h-6 w-6" />
-                  <span>Team Broadcast</span>
-                </Button>
+        <TabsContent value="communication" className="space-y-4">
+          {/* Quick Actions */}
+          <div className="grid md:grid-cols-3 gap-4">
+            <Button
+              variant="outline"
+              className="h-16 flex-col gap-1 glass-card hover:border-primary/50 transition-colors"
+              onClick={() => openComposer(false)}
+            >
+              <MessageSquare className="h-5 w-5 text-primary" />
+              <span className="text-sm">Direct Message</span>
+            </Button>
+            <Button
+              variant="outline"
+              className="h-16 flex-col gap-1 glass-card hover:border-primary/50 transition-colors"
+              onClick={() => openComposer(true)}
+            >
+              <Megaphone className="h-5 w-5 text-primary" />
+              <span className="text-sm">Team Broadcast</span>
+            </Button>
+            <div className="glass-card flex items-center justify-center gap-3 rounded-lg border px-4">
+              <Mail className="h-5 w-5 text-muted-foreground" />
+              <div className="text-center">
+                <p className="text-lg font-bold">{unreadCount}</p>
+                <p className="text-xs text-muted-foreground">Unread</p>
               </div>
-            </CardContent>
-          </Card>
+              <div className="w-px h-8 bg-border mx-2" />
+              <Send className="h-5 w-5 text-muted-foreground" />
+              <div className="text-center">
+                <p className="text-lg font-bold">{sentMessages.length}</p>
+                <p className="text-xs text-muted-foreground">Sent</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Messages Layout */}
+          <div className="grid lg:grid-cols-3 gap-4" style={{ minHeight: "500px" }}>
+            {/* Message List */}
+            <Card className="glass-card lg:col-span-1 flex flex-col">
+              <CardHeader className="pb-3 space-y-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base">Messages</CardTitle>
+                  <Button size="sm" variant="ghost" onClick={() => openComposer(false)}>
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search messages..."
+                    value={commSearch}
+                    onChange={(e) => setCommSearch(e.target.value)}
+                    className="pl-9 h-8 text-sm"
+                  />
+                </div>
+              </CardHeader>
+              <ScrollArea className="flex-1">
+                <div className="px-4 pb-4 space-y-1">
+                  {allMessages.length === 0 ? (
+                    <div className="text-center py-8">
+                      <MailOpen className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                      <p className="text-sm text-muted-foreground">No messages yet</p>
+                      <Button
+                        size="sm"
+                        variant="link"
+                        className="mt-1"
+                        onClick={() => openComposer(false)}
+                      >
+                        Send your first message
+                      </Button>
+                    </div>
+                  ) : (
+                    allMessages.map((message) => {
+                      const isSent = message.sender_id === (user?.id || "staff-1");
+                      const person = isSent ? message.recipient : message.sender;
+                      const isSelected = selectedMessage?.id === message.id;
+
+                      return (
+                        <div
+                          key={message.id}
+                          onClick={() => handleSelectMessage(message)}
+                          className={`p-3 rounded-lg cursor-pointer transition-colors ${
+                            isSelected
+                              ? "bg-primary/10 border border-primary/30"
+                              : !message.is_read && !isSent
+                              ? "bg-muted/30 hover:bg-muted/50"
+                              : "hover:bg-muted/50"
+                          }`}
+                        >
+                          <div className="flex items-start gap-3">
+                            <Avatar className="h-8 w-8 flex-shrink-0">
+                              <AvatarFallback
+                                className={`text-xs ${
+                                  !message.is_read && !isSent
+                                    ? "bg-primary text-primary-foreground"
+                                    : "bg-muted"
+                                }`}
+                              >
+                                {message.is_broadcast ? (
+                                  <Megaphone className="h-3.5 w-3.5" />
+                                ) : (
+                                  getInitials(person?.full_name)
+                                )}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between gap-2">
+                                <span
+                                  className={`text-sm truncate ${
+                                    !message.is_read && !isSent ? "font-semibold" : ""
+                                  }`}
+                                >
+                                  {message.is_broadcast
+                                    ? "Team Broadcast"
+                                    : isSent
+                                    ? `To: ${person?.full_name || person?.email || "Team"}`
+                                    : person?.full_name || person?.email || "Unknown"}
+                                </span>
+                                <span className="text-xs text-muted-foreground flex-shrink-0">
+                                  {formatMessageDate(message.created_at)}
+                                </span>
+                              </div>
+                              <p
+                                className={`text-sm truncate ${
+                                  !message.is_read && !isSent
+                                    ? "font-medium"
+                                    : "text-muted-foreground"
+                                }`}
+                              >
+                                {message.subject}
+                              </p>
+                              <p className="text-xs text-muted-foreground truncate mt-0.5">
+                                {message.content.slice(0, 60)}
+                                {message.content.length > 60 ? "..." : ""}
+                              </p>
+                            </div>
+                            {!message.is_read && !isSent && (
+                              <div className="w-2 h-2 rounded-full bg-primary flex-shrink-0 mt-2" />
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </ScrollArea>
+            </Card>
+
+            {/* Message Detail */}
+            <Card className="glass-card lg:col-span-2 flex flex-col">
+              {selectedMessage ? (
+                <>
+                  <CardHeader className="border-b pb-4">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-3">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="lg:hidden h-8 w-8"
+                          onClick={() => setSelectedMessage(null)}
+                        >
+                          <ArrowLeft className="h-4 w-4" />
+                        </Button>
+                        <Avatar className="h-10 w-10">
+                          <AvatarFallback className="bg-primary/20 text-primary">
+                            {selectedMessage.is_broadcast ? (
+                              <Megaphone className="h-5 w-5" />
+                            ) : (
+                              getInitials(
+                                selectedMessage.sender_id === (user?.id || "staff-1")
+                                  ? selectedMessage.recipient?.full_name
+                                  : selectedMessage.sender?.full_name
+                              )
+                            )}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <h3 className="font-semibold">{selectedMessage.subject}</h3>
+                          <p className="text-sm text-muted-foreground">
+                            {selectedMessage.is_broadcast ? (
+                              <span className="flex items-center gap-1">
+                                <Users className="h-3 w-3" />
+                                Team Broadcast
+                              </span>
+                            ) : selectedMessage.sender_id === (user?.id || "staff-1") ? (
+                              `To: ${selectedMessage.recipient?.full_name || selectedMessage.recipient?.email || "Team"}`
+                            ) : (
+                              `From: ${selectedMessage.sender?.full_name || selectedMessage.sender?.email}`
+                            )}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground hidden sm:inline">
+                          {format(parseISO(selectedMessage.created_at), "MMM d, yyyy 'at' HH:mm", {
+                            locale,
+                          })}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => deleteMessageMutation.mutate(selectedMessage.id)}
+                          disabled={deleteMessageMutation.isPending}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="flex-1 p-6 overflow-auto">
+                    <div className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap">
+                      {selectedMessage.content}
+                    </div>
+                  </CardContent>
+                  {selectedMessage.sender_id !== (user?.id || "staff-1") &&
+                    !selectedMessage.is_broadcast && (
+                      <div className="p-4 border-t flex gap-2">
+                        <Button
+                          size="sm"
+                          onClick={() => handleReplyMessage(selectedMessage)}
+                        >
+                          <Reply className="h-4 w-4 mr-2" />
+                          Reply
+                        </Button>
+                      </div>
+                    )}
+                </>
+              ) : (
+                <div className="flex-1 flex items-center justify-center">
+                  <div className="text-center">
+                    <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
+                    <h3 className="text-lg font-semibold">Team Communication</h3>
+                    <p className="text-muted-foreground text-sm mt-1 mb-4">
+                      Select a message or start a new conversation
+                    </p>
+                    <div className="flex gap-2 justify-center">
+                      <Button size="sm" onClick={() => openComposer(false)}>
+                        <MessageSquare className="h-4 w-4 mr-2" />
+                        Direct Message
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => openComposer(true)}>
+                        <Megaphone className="h-4 w-4 mr-2" />
+                        Broadcast
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </Card>
+          </div>
+
+          {/* Recent Broadcasts */}
+          {broadcasts.length > 0 && (
+            <Card className="glass-card">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Megaphone className="h-4 w-4 text-primary" />
+                    Recent Broadcasts
+                  </CardTitle>
+                  <Button size="sm" variant="ghost" onClick={() => openComposer(true)}>
+                    <Plus className="h-4 w-4 mr-1" />
+                    New
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {broadcasts.slice(0, 3).map((broadcast) => (
+                    <div
+                      key={broadcast.id}
+                      className="flex items-start gap-3 p-3 rounded-lg bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors"
+                      onClick={() => handleSelectMessage(broadcast)}
+                    >
+                      <Megaphone className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-medium text-sm">{broadcast.subject}</span>
+                          <span className="text-xs text-muted-foreground flex-shrink-0">
+                            {formatMessageDate(broadcast.created_at)}
+                          </span>
+                        </div>
+                        <p className="text-sm text-muted-foreground truncate mt-0.5">
+                          {broadcast.content.slice(0, 80)}
+                          {broadcast.content.length > 80 ? "..." : ""}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          By {broadcast.sender?.full_name || "You"}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
       </Tabs>
 
@@ -597,6 +1016,32 @@ const CoachManagement = () => {
           userId="staff-1"
         />
       )}
+
+      {/* Message Composer */}
+      <MessageComposer
+        open={composerOpen}
+        onOpenChange={setComposerOpen}
+        staff={staff}
+        replyTo={composerReplyTo}
+        onSend={async (data) => {
+          if (data.isBroadcast) {
+            await broadcastMutation.mutateAsync({
+              subject: data.subject,
+              content: data.content,
+            });
+          } else if (gym && user) {
+            await sendMutation.mutateAsync({
+              gym_id: gym.id,
+              sender_id: user.id,
+              recipient_id: data.recipientId,
+              subject: data.subject,
+              content: data.content,
+              is_broadcast: false,
+            });
+          }
+        }}
+        loading={sendMutation.isPending || broadcastMutation.isPending}
+      />
     </div>
   );
 };

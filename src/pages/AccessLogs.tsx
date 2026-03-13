@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useState, useEffect, useCallback } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Select,
   SelectContent,
@@ -21,6 +22,12 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
   Shield,
   ScanFace,
   Smartphone,
@@ -36,9 +43,14 @@ import {
   TrendingDown,
   Activity,
   ExternalLink,
+  FileText,
+  Printer,
+  Radio,
 } from 'lucide-react';
 import { accessControlService } from '@/services/accessControl';
 import { membersService } from '@/services/members';
+import { exportCSV, printLogs } from '@/utils/exportAccessLogs';
+import LiveAccessMonitor from '@/components/access/LiveAccessMonitor';
 import { AccessLog, AccessMethod, AccessStatus, Member } from '@/types/database';
 import { Link } from 'react-router-dom';
 
@@ -193,6 +205,24 @@ export default function AccessLogs() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline">
+                <Download className="h-4 w-4 mr-2" />
+                Export
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem onClick={() => exportCSV(filteredLogs, memberMap)}>
+                <FileText className="h-4 w-4 mr-2" />
+                CSV Export
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={printLogs}>
+                <Printer className="h-4 w-4 mr-2" />
+                Print / PDF
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button variant="outline" asChild>
             <Link to="/terminal" target="_blank">
               <ExternalLink className="h-4 w-4 mr-2" />
@@ -205,6 +235,18 @@ export default function AccessLogs() {
           </Button>
         </div>
       </div>
+
+      {/* Tabs */}
+      <Tabs defaultValue="history" className="space-y-6">
+        <TabsList className="glass">
+          <TabsTrigger value="history">Access History</TabsTrigger>
+          <TabsTrigger value="live">
+            <Radio className="h-4 w-4 mr-2" />
+            Live Monitor
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="history" className="space-y-6">
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -421,6 +463,13 @@ export default function AccessLogs() {
           </Table>
         </CardContent>
       </Card>
+
+        </TabsContent>
+
+        <TabsContent value="live">
+          {gym?.id && <LiveAccessMonitor gymId={gym.id} />}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

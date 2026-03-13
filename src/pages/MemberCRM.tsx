@@ -56,6 +56,7 @@ import {
   Heart,
   CreditCard,
   MessageSquare,
+  QrCode,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -66,8 +67,11 @@ import { memberNotesService } from "@/services/memberNotes";
 import { MemberNote } from "@/services/demoData";
 import MemberDialog, { MemberFormData } from "@/components/members/MemberDialog";
 import DeleteMemberDialog from "@/components/members/DeleteMemberDialog";
+import CommunicationCenter from "@/components/members/CommunicationCenter";
 import type { Member, Coach, ActivityStatus, MembershipType } from "@/types/database";
 import { format } from "date-fns";
+import { QRCodeSVG } from "qrcode.react";
+import { generateMemberToken } from "@/services/qrCheckin";
 
 const MemberCRM = () => {
   const { gym, profile } = useAuth();
@@ -84,6 +88,8 @@ const MemberCRM = () => {
   const [newNote, setNewNote] = useState("");
   const [notePriority, setNotePriority] = useState<"low" | "medium" | "high">("medium");
   const [noteCategory, setNoteCategory] = useState<"health" | "personal" | "payment" | "other">("other");
+  const [qrDialogOpen, setQrDialogOpen] = useState(false);
+  const [qrMember, setQrMember] = useState<Member | null>(null);
 
   // Fetch members
   const { data: members = [], isLoading: membersLoading } = useQuery({
@@ -570,6 +576,10 @@ const MemberCRM = () => {
                                   <StickyNote className="h-4 w-4 mr-2" />
                                   Add Note
                                 </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => { setQrMember(member); setQrDialogOpen(true); }}>
+                                  <QrCode className="h-4 w-4 mr-2" />
+                                  Show QR Code
+                                </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
                                   className="text-destructive"
@@ -830,30 +840,7 @@ const MemberCRM = () => {
         </TabsContent>
 
         <TabsContent value="communication">
-          <Card className="glass-card">
-            <CardHeader>
-              <CardTitle>Communication Center</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid md:grid-cols-3 gap-4">
-                <Button variant="outline" className="h-20 flex-col gap-2 relative" disabled>
-                  <Badge variant="secondary" className="absolute top-2 right-2 text-xs">Coming Soon</Badge>
-                  <Mail className="h-6 w-6" />
-                  <span>Email Campaign</span>
-                </Button>
-                <Button variant="outline" className="h-20 flex-col gap-2 relative" disabled>
-                  <Badge variant="secondary" className="absolute top-2 right-2 text-xs">Coming Soon</Badge>
-                  <Phone className="h-6 w-6" />
-                  <span>SMS Message</span>
-                </Button>
-                <Button variant="outline" className="h-20 flex-col gap-2 relative" disabled>
-                  <Badge variant="secondary" className="absolute top-2 right-2 text-xs">Coming Soon</Badge>
-                  <Users className="h-6 w-6" />
-                  <span>Push Notification</span>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          <CommunicationCenter members={filteredMembers} />
         </TabsContent>
       </Tabs>
 
@@ -873,6 +860,38 @@ const MemberCRM = () => {
         member={selectedMember}
         onConfirm={handleConfirmDelete}
       />
+
+      {/* QR Code Dialog */}
+      <Dialog open={qrDialogOpen} onOpenChange={setQrDialogOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <QrCode className="h-5 w-5 text-primary" />
+              QR Code for {qrMember?.name}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col items-center py-6">
+            {qrMember && gym?.id && (
+              <QRCodeSVG
+                value={generateMemberToken(qrMember.id, gym.id)}
+                size={256}
+                level="M"
+                includeMargin
+              />
+            )}
+            <p className="text-sm text-muted-foreground mt-4 text-center">
+              This QR code is valid for 5 minutes.
+              <br />
+              Show it at the terminal to check in.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setQrDialogOpen(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Add Note Dialog */}
       <Dialog open={noteDialogOpen} onOpenChange={setNoteDialogOpen}>

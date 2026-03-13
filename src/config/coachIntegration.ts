@@ -1,5 +1,5 @@
 // Coach App configuration
-export const COACH_APP_URL = import.meta.env.VITE_COACH_APP_URL || 'https://prometheus-coach.vercel.app';
+export const COACH_APP_URL = import.meta.env.VITE_COACH_APP_URL || 'https://app.prometheus.coach';
 
 // Deep link helpers for navigating to specific pages in the Coach App
 export const coachDeepLinks = {

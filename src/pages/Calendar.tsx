@@ -43,8 +43,12 @@ import {
   Users,
   MapPin,
   Loader2,
+  Zap,
+  Dumbbell,
 } from "lucide-react";
+import { getWorkoutForSession, getDayOfYear } from "@/services/demoWorkouts";
 import SessionDialog from "@/components/calendar/SessionDialog";
+import SessionDetailPanel from "@/components/calendar/SessionDetailPanel";
 import DeleteSessionDialog from "@/components/calendar/DeleteSessionDialog";
 import type { Session, Coach } from "@/types/database";
 
@@ -71,6 +75,7 @@ export default function Calendar() {
   const [viewMode, setViewMode] = useState<ViewMode>("week");
   const [selectedCoach, setSelectedCoach] = useState<string>("all");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedSession, setSelectedSession] = useState<SessionWithRelations | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<{ date: Date; hour: number } | null>(null);
@@ -165,6 +170,11 @@ export default function Calendar() {
   const handleSessionClick = (session: SessionWithRelations) => {
     setSelectedSession(session);
     setSelectedSlot(null);
+    setDetailOpen(true);
+  };
+
+  const handleEditFromDetail = () => {
+    setDetailOpen(false);
     setDialogOpen(true);
   };
 
@@ -215,11 +225,11 @@ export default function Calendar() {
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-4 md:space-y-6">
       {/* Header */}
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Calendar</h1>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Calendar</h1>
           <p className="text-muted-foreground">
             Manage sessions and classes
           </p>
@@ -306,6 +316,18 @@ export default function Calendar() {
         />
       )}
 
+      {/* Session Detail Panel (with workout) */}
+      <SessionDetailPanel
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+        session={selectedSession}
+        onEdit={handleEditFromDetail}
+        onDelete={() => {
+          setDetailOpen(false);
+          if (selectedSession) handleDeleteClick(selectedSession);
+        }}
+      />
+
       {/* Session Dialog */}
       <SessionDialog
         open={dialogOpen}
@@ -362,25 +384,25 @@ function WeekView({
 
   return (
     <Card className="backdrop-blur-md bg-card/80 overflow-hidden">
-      <div className="overflow-x-auto">
-        <div className="min-w-[800px]">
+      <div className="overflow-x-auto -mx-0">
+        <div className="min-w-[600px] lg:min-w-[800px]">
           {/* Header */}
           <div className="grid grid-cols-8 border-b">
-            <div className="p-3 text-center text-sm font-medium text-muted-foreground border-r">
+            <div className="p-2 lg:p-3 text-center text-xs lg:text-sm font-medium text-muted-foreground border-r">
               Time
             </div>
             {days.map((day) => (
               <div
                 key={day.toISOString()}
-                className={`p-3 text-center border-r last:border-r-0 ${
+                className={`p-2 lg:p-3 text-center border-r last:border-r-0 ${
                   isSameDay(day, today) ? "bg-primary/10" : ""
                 }`}
               >
-                <div className="text-sm font-medium">
+                <div className="text-xs lg:text-sm font-medium">
                   {format(day, "EEE", { locale: enUS })}
                 </div>
                 <div
-                  className={`text-2xl font-bold ${
+                  className={`text-lg lg:text-2xl font-bold ${
                     isSameDay(day, today) ? "text-primary" : ""
                   }`}
                 >
@@ -394,7 +416,7 @@ function WeekView({
           <div className="max-h-[600px] overflow-y-auto">
             {hours.map((hour) => (
               <div key={hour} className="grid grid-cols-8 border-b last:border-b-0">
-                <div className="p-2 text-center text-sm text-muted-foreground border-r bg-muted/30">
+                <div className="p-1 lg:p-2 text-center text-xs lg:text-sm text-muted-foreground border-r bg-muted/30">
                   {`${hour.toString().padStart(2, "0")}:00`}
                 </div>
                 {days.map((day) => {
@@ -402,26 +424,43 @@ function WeekView({
                   return (
                     <div
                       key={`${day.toISOString()}-${hour}`}
-                      className="min-h-[60px] p-1 border-r last:border-r-0 hover:bg-muted/30 cursor-pointer transition-colors"
+                      className="min-h-[48px] lg:min-h-[60px] p-1 border-r last:border-r-0 hover:bg-muted/30 cursor-pointer transition-colors"
                       onClick={() => slotSessions.length === 0 && onSlotClick(day, hour)}
                     >
-                      {slotSessions.map((session) => (
-                        <div
-                          key={session.id}
-                          className={`${getSessionTypeColor(session.session_type)} rounded-md p-2 mb-1 cursor-pointer hover:opacity-90 transition-opacity`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onSessionClick(session);
-                          }}
-                        >
-                          <div className="text-xs font-medium text-white truncate">
-                            {session.title}
+                      {slotSessions.map((session) => {
+                        const dayOfYear = getDayOfYear(day);
+                        const blocks = getWorkoutForSession(session.title, dayOfYear);
+                        const wodBlock = blocks.find((b) => b.category === "wod");
+                        const strengthBlock = blocks.find((b) => b.category === "strength");
+                        const highlight = wodBlock || strengthBlock;
+
+                        return (
+                          <div
+                            key={session.id}
+                            className={`${getSessionTypeColor(session.session_type)} rounded-md p-2 mb-1 cursor-pointer hover:opacity-90 transition-opacity`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onSessionClick(session);
+                            }}
+                          >
+                            <div className="text-xs font-medium text-white truncate">
+                              {session.title}
+                            </div>
+                            <div className="text-xs text-white/80 truncate">
+                              {session.coach?.name}
+                            </div>
+                            {highlight && (
+                              <div className="flex items-center gap-1 mt-0.5">
+                                {wodBlock && <Zap className="h-2.5 w-2.5 text-white/70" />}
+                                {strengthBlock && !wodBlock && <Dumbbell className="h-2.5 w-2.5 text-white/70" />}
+                                <span className="text-[10px] text-white/70 truncate">
+                                  {highlight.title}
+                                </span>
+                              </div>
+                            )}
                           </div>
-                          <div className="text-xs text-white/80 truncate">
-                            {session.coach?.name}
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   );
                 })}
@@ -473,7 +512,7 @@ function MonthView({
         {/* Days */}
         {paddedDays.map((day, index) => {
           if (!day) {
-            return <div key={`empty-${index}`} className="min-h-[120px] border-b border-r bg-muted/20" />;
+            return <div key={`empty-${index}`} className="min-h-[80px] md:min-h-[120px] border-b border-r bg-muted/20" />;
           }
 
           const daySessions = getSessionsForDay(day);
@@ -483,7 +522,7 @@ function MonthView({
           return (
             <div
               key={day.toISOString()}
-              className={`min-h-[120px] p-2 border-b border-r cursor-pointer hover:bg-muted/30 transition-colors ${
+              className={`min-h-[80px] md:min-h-[120px] p-1.5 md:p-2 border-b border-r cursor-pointer hover:bg-muted/30 transition-colors ${
                 !isCurrentMonth ? "bg-muted/20" : ""
               } ${isToday ? "bg-primary/5" : ""}`}
               onClick={() => onDayClick(day)}

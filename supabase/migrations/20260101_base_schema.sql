@@ -1,53 +1,64 @@
--- Prometheus Enterprise - Database Schema
--- Run this in the Supabase SQL Editor
--- Supports: Gyms, Sports Academies, Therapy Centers, Golf/Tennis Clubs, and more
+-- Prometheus Enterprise - Base Schema
+-- Drops and recreates all custom tables for clean state
+-- profiles is preserved (Supabase Auth)
 
--- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- ============================================
+-- CLEAN SLATE: Drop tables in reverse dependency order
+-- ============================================
+
+DROP TABLE IF EXISTS stripe_subscriptions CASCADE;
+DROP TABLE IF EXISTS session_participants CASCADE;
+DROP TABLE IF EXISTS payments CASCADE;
+DROP TABLE IF EXISTS sessions CASCADE;
+DROP TABLE IF EXISTS member_visits CASCADE;
+DROP TABLE IF EXISTS members CASCADE;
+DROP TABLE IF EXISTS coaches CASCADE;
+DROP TABLE IF EXISTS staff CASCADE;
+DROP TABLE IF EXISTS messages CASCADE;
+DROP TABLE IF EXISTS alerts CASCADE;
+DROP TABLE IF EXISTS settings CASCADE;
+-- NOT dropping: gyms (profiles depends on it), profiles (auth data)
 
 -- ============================================
 -- ENUMS
 -- ============================================
 
-CREATE TYPE membership_type AS ENUM ('basic', 'premium', 'vip', 'trial');
-CREATE TYPE activity_status AS ENUM ('active', 'moderate', 'inactive');
-CREATE TYPE payment_status AS ENUM ('paid', 'pending', 'overdue');
-CREATE TYPE session_status AS ENUM ('scheduled', 'completed', 'cancelled', 'no_show');
-CREATE TYPE staff_role AS ENUM ('owner', 'admin', 'manager', 'coach', 'receptionist');
-
--- Facility types for different organizations
-CREATE TYPE facility_type AS ENUM (
-    'gym',
-    'fitness_studio',
-    'sports_academy',
-    'tennis_club',
-    'golf_club',
-    'martial_arts',
-    'dance_studio',
-    'therapy_center',
-    'rehabilitation',
-    'yoga_studio',
-    'swimming_school',
-    'climbing_gym',
-    'equestrian_center',
-    'other'
-);
-
--- Client types based on facility
-CREATE TYPE client_type AS ENUM (
-    'members',
-    'students',
-    'athletes',
-    'patients',
-    'clients'
-);
+DO $$ BEGIN
+IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'membership_type') THEN
+    CREATE TYPE membership_type AS ENUM ('basic', 'premium', 'vip', 'trial');
+END IF;
+IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'activity_status') THEN
+    CREATE TYPE activity_status AS ENUM ('active', 'moderate', 'inactive');
+END IF;
+IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'payment_status') THEN
+    CREATE TYPE payment_status AS ENUM ('paid', 'pending', 'overdue');
+END IF;
+IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'session_status') THEN
+    CREATE TYPE session_status AS ENUM ('scheduled', 'completed', 'cancelled', 'no_show');
+END IF;
+IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'staff_role') THEN
+    CREATE TYPE staff_role AS ENUM ('owner', 'admin', 'manager', 'coach', 'receptionist');
+END IF;
+IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'facility_type') THEN
+    CREATE TYPE facility_type AS ENUM (
+        'gym', 'fitness_studio', 'sports_academy', 'tennis_club', 'golf_club',
+        'martial_arts', 'dance_studio', 'therapy_center', 'rehabilitation',
+        'yoga_studio', 'swimming_school', 'climbing_gym', 'equestrian_center', 'other'
+    );
+END IF;
+IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'client_type') THEN
+    CREATE TYPE client_type AS ENUM ('members', 'students', 'athletes', 'patients', 'clients');
+END IF;
+END $$;
 
 -- ============================================
 -- TABLES
 -- ============================================
 
--- Gyms/Facilities table (supports multiple facility types)
-CREATE TABLE gyms (
+-- Gyms: keep if exists, create if not
+CREATE TABLE IF NOT EXISTS gyms (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name TEXT NOT NULL,
     email TEXT,
@@ -58,16 +69,21 @@ CREATE TABLE gyms (
     currency TEXT DEFAULT 'EUR',
     facility_types facility_type[] DEFAULT '{gym}',
     client_types client_type[] DEFAULT '{members}',
-    -- Stripe Connect fields
     stripe_account_id TEXT,
     stripe_connected_at TIMESTAMPTZ,
     stripe_account_status TEXT DEFAULT 'disconnected',
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+-- Ensure gyms has all columns (may have been created with fewer)
+ALTER TABLE gyms ADD COLUMN IF NOT EXISTS facility_types facility_type[] DEFAULT '{gym}';
+ALTER TABLE gyms ADD COLUMN IF NOT EXISTS client_types client_type[] DEFAULT '{members}';
+ALTER TABLE gyms ADD COLUMN IF NOT EXISTS stripe_account_id TEXT;
+ALTER TABLE gyms ADD COLUMN IF NOT EXISTS stripe_connected_at TIMESTAMPTZ;
+ALTER TABLE gyms ADD COLUMN IF NOT EXISTS stripe_account_status TEXT DEFAULT 'disconnected';
 
--- Profiles table (extends auth.users)
-CREATE TABLE profiles (
+-- Profiles: keep if exists (Supabase Auth), ensure columns
+CREATE TABLE IF NOT EXISTS profiles (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     gym_id UUID REFERENCES gyms(id) ON DELETE SET NULL,
     email TEXT NOT NULL,
@@ -77,8 +93,20 @@ CREATE TABLE profiles (
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS gym_id UUID REFERENCES gyms(id) ON DELETE SET NULL;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS full_name TEXT;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS avatar_url TEXT;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
+-- role column: may exist as app_role or staff_role - leave as-is if exists
+DO $$ BEGIN
+IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'profiles' AND column_name = 'role') THEN
+    ALTER TABLE profiles ADD COLUMN role staff_role DEFAULT 'coach';
+END IF;
+END $$;
 
--- Staff table
+-- All other tables: dropped above, so CREATE always runs fresh
 CREATE TABLE staff (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     gym_id UUID NOT NULL REFERENCES gyms(id) ON DELETE CASCADE,
@@ -90,7 +118,6 @@ CREATE TABLE staff (
     UNIQUE(gym_id, profile_id)
 );
 
--- Coaches table
 CREATE TABLE coaches (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     gym_id UUID NOT NULL REFERENCES gyms(id) ON DELETE CASCADE,
@@ -111,7 +138,6 @@ CREATE TABLE coaches (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Members table
 CREATE TABLE members (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     gym_id UUID NOT NULL REFERENCES gyms(id) ON DELETE CASCADE,
@@ -133,7 +159,6 @@ CREATE TABLE members (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Member visits table
 CREATE TABLE member_visits (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     member_id UUID NOT NULL REFERENCES members(id) ON DELETE CASCADE,
@@ -143,7 +168,6 @@ CREATE TABLE member_visits (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Sessions table
 CREATE TABLE sessions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     gym_id UUID NOT NULL REFERENCES gyms(id) ON DELETE CASCADE,
@@ -164,7 +188,6 @@ CREATE TABLE sessions (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Session participants table
 CREATE TABLE session_participants (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     session_id UUID NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
@@ -174,7 +197,6 @@ CREATE TABLE session_participants (
     UNIQUE(session_id, member_id)
 );
 
--- Payments table
 CREATE TABLE payments (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     gym_id UUID NOT NULL REFERENCES gyms(id) ON DELETE CASCADE,
@@ -187,7 +209,6 @@ CREATE TABLE payments (
     paid_date TIMESTAMPTZ,
     payment_method TEXT,
     invoice_number TEXT,
-    -- Stripe fields
     stripe_payment_intent_id TEXT,
     stripe_invoice_id TEXT,
     stripe_charge_id TEXT,
@@ -195,7 +216,6 @@ CREATE TABLE payments (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Stripe Subscriptions table (tracks recurring memberships via Stripe)
 CREATE TABLE stripe_subscriptions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     gym_id UUID NOT NULL REFERENCES gyms(id) ON DELETE CASCADE,
@@ -212,7 +232,6 @@ CREATE TABLE stripe_subscriptions (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Messages table
 CREATE TABLE messages (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     gym_id UUID NOT NULL REFERENCES gyms(id) ON DELETE CASCADE,
@@ -226,7 +245,6 @@ CREATE TABLE messages (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Alerts table
 CREATE TABLE alerts (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     gym_id UUID NOT NULL REFERENCES gyms(id) ON DELETE CASCADE,
@@ -240,7 +258,6 @@ CREATE TABLE alerts (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Settings table
 CREATE TABLE settings (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     gym_id UUID NOT NULL REFERENCES gyms(id) ON DELETE CASCADE,
@@ -277,8 +294,6 @@ CREATE INDEX idx_messages_gym_id ON messages(gym_id);
 CREATE INDEX idx_messages_recipient_id ON messages(recipient_id);
 CREATE INDEX idx_alerts_gym_id ON alerts(gym_id);
 CREATE INDEX idx_alerts_is_read ON alerts(gym_id, is_read);
-
--- Stripe indexes
 CREATE INDEX idx_gyms_stripe_account ON gyms(stripe_account_id);
 CREATE INDEX idx_members_stripe_customer ON members(stripe_customer_id);
 CREATE INDEX idx_payments_stripe_intent ON payments(stripe_payment_intent_id);
@@ -288,11 +303,13 @@ CREATE INDEX idx_stripe_subscriptions_member_id ON stripe_subscriptions(member_i
 CREATE INDEX idx_stripe_subscriptions_stripe_id ON stripe_subscriptions(stripe_subscription_id);
 CREATE INDEX idx_stripe_subscriptions_status ON stripe_subscriptions(status);
 
+-- profiles indexes may already exist
+CREATE INDEX IF NOT EXISTS idx_profiles_gym_id ON profiles(gym_id);
+
 -- ============================================
--- FUNCTIONS & TRIGGERS
+-- FUNCTIONS
 -- ============================================
 
--- Function to update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -301,18 +318,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Apply updated_at trigger to all relevant tables
-CREATE TRIGGER update_gyms_updated_at BEFORE UPDATE ON gyms FOR EACH ROW EXECUTE FUNCTION update_updated_at();
-CREATE TRIGGER update_profiles_updated_at BEFORE UPDATE ON profiles FOR EACH ROW EXECUTE FUNCTION update_updated_at();
-CREATE TRIGGER update_staff_updated_at BEFORE UPDATE ON staff FOR EACH ROW EXECUTE FUNCTION update_updated_at();
-CREATE TRIGGER update_coaches_updated_at BEFORE UPDATE ON coaches FOR EACH ROW EXECUTE FUNCTION update_updated_at();
-CREATE TRIGGER update_members_updated_at BEFORE UPDATE ON members FOR EACH ROW EXECUTE FUNCTION update_updated_at();
-CREATE TRIGGER update_sessions_updated_at BEFORE UPDATE ON sessions FOR EACH ROW EXECUTE FUNCTION update_updated_at();
-CREATE TRIGGER update_payments_updated_at BEFORE UPDATE ON payments FOR EACH ROW EXECUTE FUNCTION update_updated_at();
-CREATE TRIGGER update_settings_updated_at BEFORE UPDATE ON settings FOR EACH ROW EXECUTE FUNCTION update_updated_at();
-CREATE TRIGGER update_stripe_subscriptions_updated_at BEFORE UPDATE ON stripe_subscriptions FOR EACH ROW EXECUTE FUNCTION update_updated_at();
-
--- Function to update activity status based on last visit
 CREATE OR REPLACE FUNCTION update_member_activity_status()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -327,76 +332,68 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER update_activity_on_visit
-AFTER INSERT ON member_visits
-FOR EACH ROW EXECUTE FUNCTION update_member_activity_status();
-
--- Function to update coach client count
 CREATE OR REPLACE FUNCTION update_coach_client_count()
 RETURNS TRIGGER AS $$
 BEGIN
     IF TG_OP = 'INSERT' OR TG_OP = 'UPDATE' THEN
         IF NEW.coach_id IS NOT NULL THEN
-            UPDATE coaches
-            SET client_count = (SELECT COUNT(*) FROM members WHERE coach_id = NEW.coach_id)
-            WHERE id = NEW.coach_id;
+            UPDATE coaches SET client_count = (SELECT COUNT(*) FROM members WHERE coach_id = NEW.coach_id) WHERE id = NEW.coach_id;
         END IF;
         IF TG_OP = 'UPDATE' AND OLD.coach_id IS NOT NULL AND OLD.coach_id != NEW.coach_id THEN
-            UPDATE coaches
-            SET client_count = (SELECT COUNT(*) FROM members WHERE coach_id = OLD.coach_id)
-            WHERE id = OLD.coach_id;
+            UPDATE coaches SET client_count = (SELECT COUNT(*) FROM members WHERE coach_id = OLD.coach_id) WHERE id = OLD.coach_id;
         END IF;
     ELSIF TG_OP = 'DELETE' THEN
         IF OLD.coach_id IS NOT NULL THEN
-            UPDATE coaches
-            SET client_count = (SELECT COUNT(*) FROM members WHERE coach_id = OLD.coach_id)
-            WHERE id = OLD.coach_id;
+            UPDATE coaches SET client_count = (SELECT COUNT(*) FROM members WHERE coach_id = OLD.coach_id) WHERE id = OLD.coach_id;
         END IF;
     END IF;
     RETURN COALESCE(NEW, OLD);
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER update_coach_clients
-AFTER INSERT OR UPDATE OR DELETE ON members
-FOR EACH ROW EXECUTE FUNCTION update_coach_client_count();
-
--- Function to increment member visits
 CREATE OR REPLACE FUNCTION increment_visits(member_uuid UUID)
 RETURNS INTEGER AS $$
-DECLARE
-    new_count INTEGER;
+DECLARE new_count INTEGER;
 BEGIN
-    UPDATE members
-    SET total_visits = total_visits + 1,
-        last_visit = NOW()
-    WHERE id = member_uuid
-    RETURNING total_visits INTO new_count;
+    UPDATE members SET total_visits = total_visits + 1, last_visit = NOW() WHERE id = member_uuid RETURNING total_visits INTO new_count;
     RETURN new_count;
 END;
 $$ LANGUAGE plpgsql;
 
--- Function to increment/decrement session participants
 CREATE OR REPLACE FUNCTION increment_session_participants(session_uuid UUID)
 RETURNS VOID AS $$
 BEGIN
-    UPDATE sessions
-    SET current_participants = current_participants + 1
-    WHERE id = session_uuid;
+    UPDATE sessions SET current_participants = current_participants + 1 WHERE id = session_uuid;
 END;
 $$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION decrement_session_participants(session_uuid UUID)
 RETURNS VOID AS $$
 BEGIN
-    UPDATE sessions
-    SET current_participants = GREATEST(0, current_participants - 1)
-    WHERE id = session_uuid;
+    UPDATE sessions SET current_participants = GREATEST(0, current_participants - 1) WHERE id = session_uuid;
 END;
 $$ LANGUAGE plpgsql;
 
 -- ============================================
--- ROW LEVEL SECURITY (RLS)
+-- TRIGGERS (fresh tables, no DROP needed except gyms/profiles)
+-- ============================================
+
+DROP TRIGGER IF EXISTS update_gyms_updated_at ON gyms;
+CREATE TRIGGER update_gyms_updated_at BEFORE UPDATE ON gyms FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+DROP TRIGGER IF EXISTS update_profiles_updated_at ON profiles;
+CREATE TRIGGER update_profiles_updated_at BEFORE UPDATE ON profiles FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+CREATE TRIGGER update_staff_updated_at BEFORE UPDATE ON staff FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+CREATE TRIGGER update_coaches_updated_at BEFORE UPDATE ON coaches FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+CREATE TRIGGER update_members_updated_at BEFORE UPDATE ON members FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+CREATE TRIGGER update_sessions_updated_at BEFORE UPDATE ON sessions FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+CREATE TRIGGER update_payments_updated_at BEFORE UPDATE ON payments FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+CREATE TRIGGER update_settings_updated_at BEFORE UPDATE ON settings FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+CREATE TRIGGER update_stripe_subscriptions_updated_at BEFORE UPDATE ON stripe_subscriptions FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+CREATE TRIGGER update_activity_on_visit AFTER INSERT ON member_visits FOR EACH ROW EXECUTE FUNCTION update_member_activity_status();
+CREATE TRIGGER update_coach_clients AFTER INSERT OR UPDATE OR DELETE ON members FOR EACH ROW EXECUTE FUNCTION update_coach_client_count();
+
+-- ============================================
+-- ROW LEVEL SECURITY
 -- ============================================
 
 ALTER TABLE gyms ENABLE ROW LEVEL SECURITY;
@@ -413,212 +410,58 @@ ALTER TABLE alerts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE stripe_subscriptions ENABLE ROW LEVEL SECURITY;
 
--- Profiles policies
-CREATE POLICY "Users can view own profile"
-ON profiles FOR SELECT
-USING (auth.uid() = id);
+-- Profiles (may have existing policies)
+DROP POLICY IF EXISTS "Users can view own profile" ON profiles;
+CREATE POLICY "Users can view own profile" ON profiles FOR SELECT USING (auth.uid() = id);
+DROP POLICY IF EXISTS "Users can update own profile" ON profiles;
+CREATE POLICY "Users can update own profile" ON profiles FOR UPDATE USING (auth.uid() = id);
+DROP POLICY IF EXISTS "Users can insert own profile" ON profiles;
+CREATE POLICY "Users can insert own profile" ON profiles FOR INSERT WITH CHECK (auth.uid() = id);
 
-CREATE POLICY "Users can update own profile"
-ON profiles FOR UPDATE
-USING (auth.uid() = id);
+-- Gyms (may have existing policies)
+DROP POLICY IF EXISTS "Users can view their gym" ON gyms;
+CREATE POLICY "Users can view their gym" ON gyms FOR SELECT
+USING (id IN (SELECT gym_id FROM profiles WHERE id = auth.uid()) OR id IN (SELECT gym_id FROM staff WHERE profile_id = auth.uid()));
+DROP POLICY IF EXISTS "Owners can update their gym" ON gyms;
+CREATE POLICY "Owners can update their gym" ON gyms FOR UPDATE
+USING (id IN (SELECT gym_id FROM profiles WHERE id = auth.uid() AND role::text = 'owner'));
+DROP POLICY IF EXISTS "Users can create gyms" ON gyms;
+CREATE POLICY "Users can create gyms" ON gyms FOR INSERT WITH CHECK (true);
 
-CREATE POLICY "Users can insert own profile"
-ON profiles FOR INSERT
-WITH CHECK (auth.uid() = id);
+-- Fresh tables: no DROP needed
+CREATE POLICY "Staff can view gym staff" ON staff FOR SELECT USING (gym_id IN (SELECT gym_id FROM profiles WHERE id = auth.uid()));
+CREATE POLICY "Admins can manage staff" ON staff FOR ALL USING (gym_id IN (SELECT gym_id FROM profiles WHERE id = auth.uid() AND role::text IN ('owner', 'admin')));
 
--- Gyms policies
-CREATE POLICY "Users can view their gym"
-ON gyms FOR SELECT
-USING (
-    id IN (SELECT gym_id FROM profiles WHERE id = auth.uid())
-    OR id IN (SELECT gym_id FROM staff WHERE profile_id = auth.uid())
-);
+CREATE POLICY "Staff can view gym coaches" ON coaches FOR SELECT USING (gym_id IN (SELECT gym_id FROM profiles WHERE id = auth.uid()));
+CREATE POLICY "Admins can manage coaches" ON coaches FOR ALL USING (gym_id IN (SELECT gym_id FROM profiles WHERE id = auth.uid() AND role::text IN ('owner', 'admin', 'manager')));
 
-CREATE POLICY "Owners can update their gym"
-ON gyms FOR UPDATE
-USING (
-    id IN (SELECT gym_id FROM profiles WHERE id = auth.uid() AND role = 'owner')
-);
+CREATE POLICY "Staff can view gym members" ON members FOR SELECT USING (gym_id IN (SELECT gym_id FROM profiles WHERE id = auth.uid()));
+CREATE POLICY "Staff can manage members" ON members FOR ALL USING (gym_id IN (SELECT gym_id FROM profiles WHERE id = auth.uid()));
 
-CREATE POLICY "Users can create gyms"
-ON gyms FOR INSERT
-WITH CHECK (true);
+CREATE POLICY "Staff can view gym visits" ON member_visits FOR SELECT USING (gym_id IN (SELECT gym_id FROM profiles WHERE id = auth.uid()));
+CREATE POLICY "Staff can manage visits" ON member_visits FOR ALL USING (gym_id IN (SELECT gym_id FROM profiles WHERE id = auth.uid()));
 
--- Staff policies
-CREATE POLICY "Staff can view gym staff"
-ON staff FOR SELECT
-USING (
-    gym_id IN (SELECT gym_id FROM profiles WHERE id = auth.uid())
-);
+CREATE POLICY "Staff can view gym sessions" ON sessions FOR SELECT USING (gym_id IN (SELECT gym_id FROM profiles WHERE id = auth.uid()));
+CREATE POLICY "Staff can manage sessions" ON sessions FOR ALL USING (gym_id IN (SELECT gym_id FROM profiles WHERE id = auth.uid()));
 
-CREATE POLICY "Admins can manage staff"
-ON staff FOR ALL
-USING (
-    gym_id IN (SELECT gym_id FROM profiles WHERE id = auth.uid() AND role IN ('owner', 'admin'))
-);
+CREATE POLICY "Staff can view session participants" ON session_participants FOR SELECT
+USING (session_id IN (SELECT id FROM sessions WHERE gym_id IN (SELECT gym_id FROM profiles WHERE id = auth.uid())));
+CREATE POLICY "Staff can manage session participants" ON session_participants FOR ALL
+USING (session_id IN (SELECT id FROM sessions WHERE gym_id IN (SELECT gym_id FROM profiles WHERE id = auth.uid())));
 
--- Coaches policies
-CREATE POLICY "Staff can view gym coaches"
-ON coaches FOR SELECT
-USING (
-    gym_id IN (SELECT gym_id FROM profiles WHERE id = auth.uid())
-);
+CREATE POLICY "Staff can view gym payments" ON payments FOR SELECT USING (gym_id IN (SELECT gym_id FROM profiles WHERE id = auth.uid()));
+CREATE POLICY "Staff can manage payments" ON payments FOR ALL USING (gym_id IN (SELECT gym_id FROM profiles WHERE id = auth.uid()));
 
-CREATE POLICY "Admins can manage coaches"
-ON coaches FOR ALL
-USING (
-    gym_id IN (SELECT gym_id FROM profiles WHERE id = auth.uid() AND role IN ('owner', 'admin', 'manager'))
-);
+CREATE POLICY "Users can view their messages" ON messages FOR SELECT
+USING (sender_id = auth.uid() OR recipient_id = auth.uid() OR (is_broadcast = true AND gym_id IN (SELECT gym_id FROM profiles WHERE id = auth.uid())));
+CREATE POLICY "Users can send messages" ON messages FOR INSERT
+WITH CHECK (sender_id = auth.uid() AND gym_id IN (SELECT gym_id FROM profiles WHERE id = auth.uid()));
 
--- Members policies
-CREATE POLICY "Staff can view gym members"
-ON members FOR SELECT
-USING (
-    gym_id IN (SELECT gym_id FROM profiles WHERE id = auth.uid())
-);
+CREATE POLICY "Staff can view gym alerts" ON alerts FOR SELECT USING (gym_id IN (SELECT gym_id FROM profiles WHERE id = auth.uid()));
+CREATE POLICY "Staff can manage alerts" ON alerts FOR ALL USING (gym_id IN (SELECT gym_id FROM profiles WHERE id = auth.uid()));
 
-CREATE POLICY "Staff can manage members"
-ON members FOR ALL
-USING (
-    gym_id IN (SELECT gym_id FROM profiles WHERE id = auth.uid())
-);
+CREATE POLICY "Staff can view gym settings" ON settings FOR SELECT USING (gym_id IN (SELECT gym_id FROM profiles WHERE id = auth.uid()));
+CREATE POLICY "Admins can manage settings" ON settings FOR ALL USING (gym_id IN (SELECT gym_id FROM profiles WHERE id = auth.uid() AND role::text IN ('owner', 'admin')));
 
--- Member visits policies
-CREATE POLICY "Staff can view gym visits"
-ON member_visits FOR SELECT
-USING (
-    gym_id IN (SELECT gym_id FROM profiles WHERE id = auth.uid())
-);
-
-CREATE POLICY "Staff can manage visits"
-ON member_visits FOR ALL
-USING (
-    gym_id IN (SELECT gym_id FROM profiles WHERE id = auth.uid())
-);
-
--- Sessions policies
-CREATE POLICY "Staff can view gym sessions"
-ON sessions FOR SELECT
-USING (
-    gym_id IN (SELECT gym_id FROM profiles WHERE id = auth.uid())
-);
-
-CREATE POLICY "Staff can manage sessions"
-ON sessions FOR ALL
-USING (
-    gym_id IN (SELECT gym_id FROM profiles WHERE id = auth.uid())
-);
-
--- Session participants policies
-CREATE POLICY "Staff can view session participants"
-ON session_participants FOR SELECT
-USING (
-    session_id IN (
-        SELECT id FROM sessions WHERE gym_id IN (
-            SELECT gym_id FROM profiles WHERE id = auth.uid()
-        )
-    )
-);
-
-CREATE POLICY "Staff can manage session participants"
-ON session_participants FOR ALL
-USING (
-    session_id IN (
-        SELECT id FROM sessions WHERE gym_id IN (
-            SELECT gym_id FROM profiles WHERE id = auth.uid()
-        )
-    )
-);
-
--- Payments policies
-CREATE POLICY "Staff can view gym payments"
-ON payments FOR SELECT
-USING (
-    gym_id IN (SELECT gym_id FROM profiles WHERE id = auth.uid())
-);
-
-CREATE POLICY "Staff can manage payments"
-ON payments FOR ALL
-USING (
-    gym_id IN (SELECT gym_id FROM profiles WHERE id = auth.uid())
-);
-
--- Messages policies
-CREATE POLICY "Users can view their messages"
-ON messages FOR SELECT
-USING (
-    sender_id = auth.uid()
-    OR recipient_id = auth.uid()
-    OR (is_broadcast = true AND gym_id IN (SELECT gym_id FROM profiles WHERE id = auth.uid()))
-);
-
-CREATE POLICY "Users can send messages"
-ON messages FOR INSERT
-WITH CHECK (
-    sender_id = auth.uid()
-    AND gym_id IN (SELECT gym_id FROM profiles WHERE id = auth.uid())
-);
-
--- Alerts policies
-CREATE POLICY "Staff can view gym alerts"
-ON alerts FOR SELECT
-USING (
-    gym_id IN (SELECT gym_id FROM profiles WHERE id = auth.uid())
-);
-
-CREATE POLICY "Staff can manage alerts"
-ON alerts FOR ALL
-USING (
-    gym_id IN (SELECT gym_id FROM profiles WHERE id = auth.uid())
-);
-
--- Settings policies
-CREATE POLICY "Staff can view gym settings"
-ON settings FOR SELECT
-USING (
-    gym_id IN (SELECT gym_id FROM profiles WHERE id = auth.uid())
-);
-
-CREATE POLICY "Admins can manage settings"
-ON settings FOR ALL
-USING (
-    gym_id IN (SELECT gym_id FROM profiles WHERE id = auth.uid() AND role IN ('owner', 'admin'))
-);
-
--- Stripe subscriptions policies
-CREATE POLICY "Staff can view gym subscriptions"
-ON stripe_subscriptions FOR SELECT
-USING (
-    gym_id IN (SELECT gym_id FROM profiles WHERE id = auth.uid())
-);
-
-CREATE POLICY "Admins can manage subscriptions"
-ON stripe_subscriptions FOR ALL
-USING (
-    gym_id IN (SELECT gym_id FROM profiles WHERE id = auth.uid() AND role IN ('owner', 'admin', 'manager'))
-);
-
--- ============================================
--- MIGRATION (for existing databases)
--- ============================================
--- Run these statements if you already have the database set up:
-
--- Facility types migration:
--- CREATE TYPE facility_type AS ENUM (...);
--- CREATE TYPE client_type AS ENUM (...);
--- ALTER TABLE gyms ADD COLUMN IF NOT EXISTS facility_types facility_type[] DEFAULT '{gym}';
--- ALTER TABLE gyms ADD COLUMN IF NOT EXISTS client_types client_type[] DEFAULT '{members}';
-
--- Stripe Connect migration:
--- ALTER TABLE gyms ADD COLUMN IF NOT EXISTS stripe_account_id TEXT;
--- ALTER TABLE gyms ADD COLUMN IF NOT EXISTS stripe_connected_at TIMESTAMPTZ;
--- ALTER TABLE gyms ADD COLUMN IF NOT EXISTS stripe_account_status TEXT DEFAULT 'disconnected';
--- ALTER TABLE members ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT;
--- ALTER TABLE payments ADD COLUMN IF NOT EXISTS stripe_payment_intent_id TEXT;
--- ALTER TABLE payments ADD COLUMN IF NOT EXISTS stripe_invoice_id TEXT;
--- ALTER TABLE payments ADD COLUMN IF NOT EXISTS stripe_charge_id TEXT;
--- CREATE TABLE stripe_subscriptions (...);  -- See full schema above
-
--- ============================================
--- DONE!
--- ============================================
+CREATE POLICY "Staff can view gym subscriptions" ON stripe_subscriptions FOR SELECT USING (gym_id IN (SELECT gym_id FROM profiles WHERE id = auth.uid()));
+CREATE POLICY "Admins can manage subscriptions" ON stripe_subscriptions FOR ALL USING (gym_id IN (SELECT gym_id FROM profiles WHERE id = auth.uid() AND role::text IN ('owner', 'admin', 'manager')));

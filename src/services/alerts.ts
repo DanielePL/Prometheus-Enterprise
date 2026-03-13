@@ -9,6 +9,7 @@ export type AlertType =
   | 'low_attendance'
   | 'target_achieved'
   | 'new_member'
+  | 'access_denied'
   | 'system'
   | 'custom';
 
@@ -191,6 +192,24 @@ export const alertsService = {
       title: 'New member joined',
       message: `${memberName} has signed up.`,
       action_url: `/members/${memberId}`,
+      related_id: memberId,
+    });
+  },
+
+  async createAccessDeniedAlert(
+    gymId: string,
+    memberName: string,
+    memberId: string,
+    reason: string,
+    method: string
+  ) {
+    return this.create({
+      gym_id: gymId,
+      type: 'access_denied',
+      severity: 'warning',
+      title: 'Access denied',
+      message: `${memberName} was denied access via ${method}. Reason: ${reason}`,
+      action_url: `/access-logs`,
       related_id: memberId,
     });
   },

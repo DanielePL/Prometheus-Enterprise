@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useTheme } from "next-themes";
 import { Toaster } from "sonner";
+import ErrorBoundary from "./components/ErrorBoundary";
 import Sidebar from "./components/Navigation/Sidebar";
 import BottomNav from "./components/Navigation/BottomNav";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
@@ -20,6 +21,9 @@ import CheckInTerminal from "./pages/CheckInTerminal";
 import AccessLogs from "./pages/AccessLogs";
 import Pricing from "./pages/Pricing";
 import LocationAnalysis from "./pages/LocationAnalysis";
+import Programming from "./pages/Programming";
+import Leaderboard from "./pages/Leaderboard";
+import Memberships from "./pages/Memberships";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -40,7 +44,9 @@ const AppLayout = ({ children }: AppLayoutProps) => {
       <Sidebar />
       <main className="md:ml-16 pb-20 md:pb-0 min-h-screen">
         <div className="p-4 md:p-6 lg:p-8">
-          {children}
+          <ErrorBoundary>
+            {children}
+          </ErrorBoundary>
         </div>
       </main>
       <BottomNav />
@@ -166,12 +172,48 @@ function App() {
         }
       />
       <Route
+        path="/memberships"
+        element={
+          <ProtectedRoute>
+            <SubscriptionRoute>
+              <AppLayout>
+                <Memberships />
+              </AppLayout>
+            </SubscriptionRoute>
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/access-logs"
         element={
           <ProtectedRoute>
             <SubscriptionRoute>
               <AppLayout>
                 <AccessLogs />
+              </AppLayout>
+            </SubscriptionRoute>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/leaderboard"
+        element={
+          <ProtectedRoute>
+            <SubscriptionRoute>
+              <AppLayout>
+                <Leaderboard />
+              </AppLayout>
+            </SubscriptionRoute>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/programming"
+        element={
+          <ProtectedRoute>
+            <SubscriptionRoute>
+              <AppLayout>
+                <Programming />
               </AppLayout>
             </SubscriptionRoute>
           </ProtectedRoute>

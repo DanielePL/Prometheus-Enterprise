@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
+import { Badge } from '@/components/ui/badge';
 import {
   Shield,
   ScanFace,
@@ -14,6 +15,11 @@ import {
   Save,
   Loader2,
   Calendar,
+  QrCode,
+  Plus,
+  Trash2,
+  Eye,
+  Radio,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { accessControlService, DEFAULT_OPENING_HOURS } from '@/services/accessControl';
@@ -36,6 +42,7 @@ const DAYS = [
 export default function AccessSettings({ gymId }: AccessSettingsProps) {
   const queryClient = useQueryClient();
   const [hasChanges, setHasChanges] = useState(false);
+  const [newHolidayDate, setNewHolidayDate] = useState('');
   const [settings, setSettings] = useState<Partial<GymAccessSettings>>({
     bluetooth_enabled: true,
     face_recognition_enabled: true,
@@ -172,6 +179,45 @@ export default function AccessSettings({ gymId }: AccessSettingsProps) {
             />
           </div>
 
+          {settings.bluetooth_enabled && (
+            <div className="ml-8 space-y-3">
+              <Label className="flex items-center gap-2">
+                <Radio className="h-4 w-4" />
+                Bluetooth Range ({settings.bluetooth_range_meters || 5}m)
+              </Label>
+              <Slider
+                value={[settings.bluetooth_range_meters || 5]}
+                onValueChange={([value]) =>
+                  updateSetting('bluetooth_range_meters', value)
+                }
+                min={1}
+                max={20}
+                step={1}
+              />
+              <p className="text-xs text-muted-foreground">
+                Only allow check-in when the device is within this range. Set to 0 to disable range check.
+              </p>
+            </div>
+          )}
+
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <QrCode className="h-5 w-5 text-primary" />
+              <div>
+                <p className="font-medium">QR Code Check-in</p>
+                <p className="text-sm text-muted-foreground">
+                  Allow check-in via QR code scanning
+                </p>
+              </div>
+            </div>
+            <Switch
+              checked={settings.qr_code_enabled}
+              onCheckedChange={(checked) =>
+                updateSetting('qr_code_enabled', checked)
+              }
+            />
+          </div>
+
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Calendar className="h-5 w-5 text-primary" />
@@ -216,6 +262,24 @@ export default function AccessSettings({ gymId }: AccessSettingsProps) {
               <p className="text-xs text-muted-foreground">
                 Lower values are stricter (fewer false positives), higher values are more lenient.
               </p>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Eye className="h-5 w-5 text-primary" />
+                <div>
+                  <p className="font-medium">Liveness Check</p>
+                  <p className="text-sm text-muted-foreground">
+                    Require blink detection to prevent photo spoofing
+                  </p>
+                </div>
+              </div>
+              <Switch
+                checked={settings.require_liveness_check}
+                onCheckedChange={(checked) =>
+                  updateSetting('require_liveness_check', checked)
+                }
+              />
             </div>
           </CardContent>
         </Card>
@@ -349,6 +413,84 @@ export default function AccessSettings({ gymId }: AccessSettingsProps) {
               );
             })}
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Holiday Closures */}
+      <Card className="glass-card">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Calendar className="h-5 w-5" />
+            Holiday Closures
+          </CardTitle>
+          <CardDescription>
+            Add dates when the gym will be closed (holidays, maintenance, etc.)
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex gap-2">
+            <Input
+              type="date"
+              value={newHolidayDate}
+              onChange={(e) => setNewHolidayDate(e.target.value)}
+              className="w-auto"
+            />
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (!newHolidayDate) return;
+                const current = settings.holiday_closures || [];
+                if (current.includes(newHolidayDate)) {
+                  toast.error('Date already added');
+                  return;
+                }
+                updateSetting('holiday_closures', [...current, newHolidayDate].sort() as any);
+                setNewHolidayDate('');
+              }}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add
+            </Button>
+          </div>
+          {(settings.holiday_closures || []).length > 0 ? (
+            <div className="space-y-2">
+              {[...(settings.holiday_closures || [])].sort().map((date) => {
+                const isPast = new Date(date) < new Date(new Date().toISOString().split('T')[0]);
+                return (
+                  <div
+                    key={date}
+                    className={`flex items-center justify-between p-2 rounded-lg bg-muted/50 ${isPast ? 'opacity-50' : ''}`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-muted-foreground" />
+                      <span>{new Date(date + 'T00:00:00').toLocaleDateString('de-DE', {
+                        weekday: 'long',
+                        day: 'numeric',
+                        month: 'long',
+                        year: 'numeric',
+                      })}</span>
+                      {isPast && <Badge variant="outline" className="text-xs">Past</Badge>}
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                      onClick={() => {
+                        updateSetting(
+                          'holiday_closures',
+                          (settings.holiday_closures || []).filter((d) => d !== date) as any
+                        );
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">No holiday closures configured</p>
+          )}
         </CardContent>
       </Card>
 

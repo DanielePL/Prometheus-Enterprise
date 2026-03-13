@@ -202,6 +202,32 @@ class BluetoothCheckinService {
 export const bluetoothCheckinService = new BluetoothCheckinService();
 
 // ==========================================
+// Bluetooth Range Estimation
+// ==========================================
+
+/**
+ * Estimate distance from RSSI using log-distance path loss model.
+ * d = 10 ^ ((txPower - rssi) / (10 * n))
+ * where n is the path loss exponent (typically 2 for free space, 3-4 for indoor)
+ */
+export function estimateDistance(rssi: number, txPower: number = -59): number {
+  if (rssi === 0) return -1;
+  const n = 3; // Indoor path loss exponent
+  return Math.pow(10, (txPower - rssi) / (10 * n));
+}
+
+/**
+ * Check if a device is within a given range based on RSSI.
+ * Returns true if RSSI is not available (graceful degradation).
+ */
+export function isWithinRange(rssi: number | undefined, maxMeters: number): boolean {
+  if (rssi === undefined || rssi === null) return true; // Graceful degradation
+  const distance = estimateDistance(rssi);
+  if (distance < 0) return true; // Invalid RSSI
+  return distance <= maxMeters;
+}
+
+// ==========================================
 // Simple Device-Based Check-in (Fallback)
 // ==========================================
 
